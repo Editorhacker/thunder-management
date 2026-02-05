@@ -9,6 +9,7 @@ import DeviceUsageChart from '../components/analytics/DeviceUsageChart';
 import SnacksConsumptionChart from '../components/analytics/SnacksConsumptionChart';
 import GrowthComparisonChart from '../components/analytics/GrowthComparisonChart';
 import BattleLeaderboard from '../components/analytics/BattleLeaderboard';
+import ThunderCoinsLeaderboard from '../components/analytics/ThunderCoinsLeaderboard';
 import { FaUserFriends, FaGamepad, FaHamburger } from 'react-icons/fa';
 import { MdTrendingUp } from 'react-icons/md';
 
@@ -99,11 +100,19 @@ const Analytics: React.FC = () => {
                 </div>
 
                 {/* Battle Leaderboard - Full Width */}
-                <div style={{
-                    marginBottom: '24px'
-                }}>
+                {/* Battle + Thunder Coins Leaderboards */}
+                <div
+                    style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '24px',
+                        marginBottom: '24px'
+                    }}
+                >
                     <BattleLeaderboard />
+                    <ThunderCoinsLeaderboard />
                 </div>
+
             </div>
         </DashboardLayout>
     );

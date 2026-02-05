@@ -16,6 +16,7 @@
     "express": "^5.2.1",
     "firebase-admin": "^13.6.0",
     "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^7.0.12"
+    "nodemailer": "^7.0.12",
+    "socket.io": "^4.8.3"
   }
 }

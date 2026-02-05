@@ -90,7 +90,7 @@ const ActiveSessions = () => {
       const res = await axios.get('http://localhost:5000/api/sessions/active');
       setSessions(res.data);
 
-    }, 10000); // every 10 seconds
+    }, 30000); // every 10 seconds
 
     return () => clearInterval(interval);
   }, [sessions]);

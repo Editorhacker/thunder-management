@@ -4,6 +4,7 @@ import { FaFire } from 'react-icons/fa';
 import axios from 'axios';
 import './ActiveBattles.css';
 
+
 interface BattlePlayer {
     name: string;
     phone: string;

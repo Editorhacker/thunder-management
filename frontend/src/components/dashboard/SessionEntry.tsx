@@ -155,7 +155,7 @@ const SessionEntry: React.FC = () => {
 
   useEffect(() => {
     fetchAvailability();
-    const interval = setInterval(fetchAvailability, 5000); // Poll every 5s
+    const interval = setInterval(fetchAvailability, 30000); // Poll every 5s
     return () => clearInterval(interval);
   }, []);
 
