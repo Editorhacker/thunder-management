@@ -25,6 +25,13 @@ exports.startBattle = async (req, res) => {
         };
 
         const docRef = await db.collection('battles').add(battleData);
+         const response = {
+            id: docRef.id,
+            ...battleData
+        };
+
+        // 🔔 Socket event
+        global.io.emit('battle:started', response);
 
         console.log('✅ Battle created:', docRef.id);
         res.status(201).json({ id: docRef.id, ...battleData });
@@ -91,6 +98,11 @@ exports.updateScore = async (req, res) => {
             [`${player}.score`]: currentScore + 1
         });
 
+      global.io.emit('battle:scoreUpdated', {
+            battleId: id,
+            player
+        });    
+        
         res.status(200).json({ message: 'Score updated' });
 
     } catch (error) {
@@ -159,6 +171,8 @@ exports.finishBattle = async (req, res) => {
         }
 
         await batch.commit();
+
+        global.io.emit('battle:finished', { battleId: id });
 
         res.status(200).json({
             message: 'Battle finished',

@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { GiCrossedSwords, GiTrophyCup } from 'react-icons/gi';
 import { FaFire } from 'react-icons/fa';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 import './ActiveBattles.css';
 
+/* -------------------- Types -------------------- */
 
 interface BattlePlayer {
     name: string;
@@ -12,72 +14,120 @@ interface BattlePlayer {
 }
 
 interface Battle {
-    id: string; // ID is string from firebase
+    id: string;
     crownHolder: BattlePlayer;
     challenger: BattlePlayer;
-    startTime: string; // ISO string
+    startTime: any; // Firestore timestamp
 }
+
+/* -------------------- Socket -------------------- */
+
+// create socket ONCE
+const socket = io('http://localhost:5000', {
+    transports: ['websocket']
+});
+
+/* -------------------- Component -------------------- */
 
 const ActiveBattles = () => {
     const [battles, setBattles] = useState<Battle[]>([]);
 
-    // Fetch Battles
+    /* -------------------- Initial Fetch -------------------- */
+
     const fetchBattles = async () => {
         try {
-            console.log('🔄 Fetching battles from API...');
             const res = await axios.get('http://localhost:5000/api/battles/active');
-            console.log('✅ Battles fetched:', res.data);
             setBattles(res.data);
         } catch (error) {
-            console.error("❌ Failed to fetch battles:", error);
+            console.error('❌ Failed to fetch battles:', error);
         }
     };
 
+    /* -------------------- Socket Listeners -------------------- */
+
     useEffect(() => {
+        // 1️⃣ Fetch ONCE on load
         fetchBattles();
-        const interval = setInterval(fetchBattles, 5000); // Poll every 5s
-        return () => clearInterval(interval);
+
+        // 2️⃣ Score updates
+       
+
+        // 3️⃣ Battle finished
+        socket.on('battle:finished', ({ battleId }) => {
+            setBattles(prev => prev.filter(b => b.id !== battleId));
+        });
+
+        // 4️⃣ New battle started
+        socket.on('battle:started', (battle: Battle) => {
+            setBattles(prev => [battle, ...prev]);
+        });
+
+        return () => {
+            socket.off('battle:scoreUpdated');
+            socket.off('battle:finished');
+            socket.off('battle:started');
+        };
     }, []);
 
-    const updateScore = async (id: string, player: 'crownHolder' | 'challenger') => {
+    /* -------------------- Actions -------------------- */
+
+    const updateScore = async (
+        id: string,
+        player: 'crownHolder' | 'challenger'
+    ) => {
         try {
             // Optimistic update
-            setBattles(prev => prev.map(b => {
-                if (b.id !== id) return b;
-                return {
-                    ...b,
-                    [player]: {
-                        ...b[player],
-                        score: b[player].score + 1
-                    }
-                };
-            }));
+            setBattles(prev =>
+                prev.map(b =>
+                    b.id === id
+                        ? {
+                            ...b,
+                            [player]: {
+                                ...b[player],
+                                score: b[player].score + 1
+                            }
+                        }
+                        : b
+                )
+            );
 
-            await axios.post(`http://localhost:5000/api/battles/score/${id}`, { player });
+            await axios.post(
+                `http://localhost:5000/api/battles/score/${id}`,
+                { player }
+            );
         } catch (error) {
             console.error(error);
-            fetchBattles(); // Revert on error
+            fetchBattles(); // resync on error
         }
     };
 
     const finishBattle = async (id: string) => {
-        if (!window.confirm("End this battle?")) return;
+        if (!window.confirm('End this battle?')) return;
 
         try {
-            await axios.post(`http://localhost:5000/api/battles/finish/${id}`);
-            fetchBattles(); // Refresh list to remove it
+            await axios.post(
+                `http://localhost:5000/api/battles/finish/${id}`
+            );
+            // removal handled by socket event
         } catch (error) {
             console.error(error);
         }
     };
 
+    /* -------------------- Helpers -------------------- */
 
-    // Helper for duration
-    const getDuration = (startTime: string) => {
-        const diff = Date.now() - new Date(startTime).getTime();
-        const mins = Math.floor(diff / 60000);
+    const getDuration = (startTime: any) => {
+        if (!startTime) return '';
+        const start =
+            startTime.seconds
+                ? startTime.seconds * 1000
+                : new Date(startTime).getTime();
+
+        const mins = Math.floor((Date.now() - start) / 60000);
         return `${mins}m elapsed`;
     };
+
+    /* -------------------- UI -------------------- */
 
     return (
         <section className="active-battles-container">
@@ -92,23 +142,15 @@ const ActiveBattles = () => {
             </div>
 
             {battles.length === 0 ? (
-                <div style={{
-                    textAlign: 'center',
-                    padding: '3rem 1rem',
-                    color: '#71717a',
-                    background: '#18181b',
-                    borderRadius: '16px',
-                    border: '1px solid rgba(255, 255, 255, 0.05)'
-                }}>
-                    <GiCrossedSwords size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                    <p style={{ fontSize: '0.9rem', fontWeight: 500 }}>No active battles</p>
-                    <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>Start a new battle to see it here</p>
+                <div className="empty-state">
+                    <GiCrossedSwords size={48} />
+                    <p>No active battles</p>
                 </div>
             ) : (
                 <div className="battles-grid">
                     {battles.map(battle => (
                         <div key={battle.id} className="battle-card">
-                            {/* Status Bar */}
+                            {/* Status */}
                             <div className="battle-status-bar">
                                 <div className="live-badge">
                                     <div className="live-dot" /> LIVE
@@ -119,38 +161,58 @@ const ActiveBattles = () => {
                             {/* Content */}
                             <div className="battle-content">
                                 <div className="battle-vs-layout">
-                                    {/* Crown Holder (Left) */}
                                     <div className="player-side">
                                         <div className="crown-hold player-score">
                                             {battle.crownHolder.score}
                                         </div>
-                                        <span className="player-name">{battle.crownHolder.name}</span>
-                                        <div className="player-meta text-yellow-500/80 flex items-center gap-1">
+                                        <span className="player-name">
+                                            {battle.crownHolder.name}
+                                        </span>
+                                        <div className="player-meta">
                                             <GiTrophyCup /> Crown Holder
                                         </div>
                                     </div>
 
-                                    {/* VS Divider */}
                                     <div className="vs-divider">VS</div>
 
-                                    {/* Challenger (Right) */}
                                     <div className="player-side challenger">
                                         <div className="chal-hold player-score">
                                             {battle.challenger.score}
                                         </div>
-                                        <span className="player-name">{battle.challenger.name}</span>
-                                        <div className="player-meta text-blue-500/80 flex items-center gap-1 justify-end">
+                                        <span className="player-name">
+                                            {battle.challenger.name}
+                                        </span>
+                                        <div className="player-meta">
                                             Challenger <FaFire />
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Footer Actions */}
+                            {/* Actions */}
                             <div className="battle-footer">
-                                <button className="action-btn" onClick={() => updateScore(battle.id, 'crownHolder')}>+ Crown Score</button>
-                                <button className="action-btn" onClick={() => updateScore(battle.id, 'challenger')}>+ Chal. Score</button>
-                                <button className="action-btn finish" onClick={() => finishBattle(battle.id)}>Finish Match</button>
+                                <button
+                                    className="action-btn"
+                                    onClick={() =>
+                                        updateScore(battle.id, 'crownHolder')
+                                    }
+                                >
+                                    + Crown Score
+                                </button>
+                                <button
+                                    className="action-btn"
+                                    onClick={() =>
+                                        updateScore(battle.id, 'challenger')
+                                    }
+                                >
+                                    + Chal. Score
+                                </button>
+                                <button
+                                    className="action-btn finish"
+                                    onClick={() => finishBattle(battle.id)}
+                                >
+                                    Finish Match
+                                </button>
                             </div>
                         </div>
                     ))}
