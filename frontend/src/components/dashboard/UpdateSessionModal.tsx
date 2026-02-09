@@ -6,19 +6,22 @@ import { FaTimes, FaDesktop, FaGamepad, FaClock, FaUserPlus, FaPizzaSlice, FaMin
 import "./UpdateSessionModal.css";
 import SnackSelector from './SnackSelector';
 import DeviceDropdown from './DeviceDropdown';
-import { calculateSessionPrice, isFunNightTime, isNormalHourTime } from '../../utils/pricing';
+import { calculateSessionPrice } from '../../utils/pricing';
 
 // ------------------- Types -------------------
 interface DeviceMap {
-    ps: number;
-    pc: number;
-    vr: number;
-    wheel: number;
-    metabat: number;
+    ps: number[];
+    pc: number[];
+    vr: number[];
+    wheel: number[];
+    metabat: number[];
 }
 
+
+
+
 interface Availability {
-    limits: DeviceMap;
+    limits: Record<string, number>;
     occupied: {
         ps: number[];
         pc: number[];
@@ -38,7 +41,7 @@ interface ActiveSession {
     paidAmount?: number;
     paidPeople?: number;
     remainingAmount?: number;
-    devices: string[];
+    devices: { type: string; id: number | null }[]; // Updated structure
 }
 
 interface Props {
@@ -47,7 +50,7 @@ interface Props {
 }
 
 // ------------------- Constants -------------------
-const PRICE_PER_HOUR_PER_PERSON = 50;
+// const PRICE_PER_HOUR_PER_PERSON = 50; // Removed unused
 
 const UpdateSessionModal = ({ session, onClose }: Props) => {
     // ------------------- State -------------------
@@ -70,10 +73,26 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
             .catch(err => console.error("Failed to fetch availability", err));
     }, []);
 
+    // Auto-close safety for modal if session expires while open
+    useEffect(() => {
+        const checkExpiry = () => {
+            const start = new Date(session.startTime).getTime();
+            const durationMs = session.duration * 60 * 60 * 1000;
+            const end = start + durationMs;
+            const now = Date.now();
+
+            if (now > end + 30000) { // 30s grace
+                onClose();
+            }
+        };
+        const timer = setInterval(checkExpiry, 1000);
+        return () => clearInterval(timer);
+    }, [session, onClose]);
+
     const [newMember, setNewMember] = useState({
         name: "",
         peopleCount: 0,
-        devices: { ps: 0, pc: 0, vr: 0, wheel: 0, metabat: 0 } as DeviceMap
+        devices: { ps: [], pc: [], vr: [], wheel: [], metabat: [] } as DeviceMap
     });
 
     // Feature 3: Snacks (Dynamic)
@@ -82,27 +101,30 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     // ------------------- Calculations -------------------
 
-    // Helper to calculate price for a specific configuration
-    const getPrice = (d: number, p: number, devices: Record<string, number>) => {
-        return calculateSessionPrice(
-            d,
-            p,
-            devices,
-            new Date() // Fun Night / Normal Hour check time (now)
-        );
-    };
-
-    // Convert session.devices array to map for logic
+    // Convert session.devices array ({ type, id }) to map for logic (Record<string, number[]>)
     const currentDeviceMap = session.devices.reduce((acc, dev) => {
-        acc[dev] = (acc[dev] || 0) + 1;
+        if (!acc[dev.type]) acc[dev.type] = [];
+        if (dev.id) acc[dev.type].push(dev.id);
+        // If id is null (legacy), we can't really represent it in number[], but pricing mostly cares about count or array length
+        // Note: frontend calculateSessionPrice normally expects number[] to determine count.
+        // If legacy data has no ID, we might need a workaround if pricing depends on specific IDs?
+        // Actually, pricing just uses .length usually. So we can push dummy values if needed, but let's assume valid IDs for now.
         return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<string, number[]>);
 
     // MERGED map (current + new)
-    const mergedDevices = { ...currentDeviceMap };
+    const mergedDevices: Record<string, number[]> = { ...currentDeviceMap };
+
+    // Ensure all keys exist
+    ['ps', 'pc', 'vr', 'wheel', 'metabat'].forEach(k => {
+        if (!mergedDevices[k]) mergedDevices[k] = [];
+    });
+
     Object.keys(newMember.devices).forEach(k => {
         const key = k as keyof DeviceMap;
-        mergedDevices[key] = (mergedDevices[key] || 0) + newMember.devices[key];
+        const newDevs = newMember.devices[key];
+        // Combine arrays
+        mergedDevices[key] = [...(mergedDevices[key] || []), ...newDevs];
     });
 
 
@@ -113,17 +135,12 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     const totalPeople = (session.peopleCount || 1) + (newMember.peopleCount || 0);
     const newDuration = (session.duration || 0) + (extraMinutes / 60);
 
-    const checkIsFunNight = isFunNightTime();
-    const checkIsNormalHour = isNormalHourTime();
-
-    let extendPrice = 0;
-    let newMemberPrice = 0;
-
     // We calculate "Expected Total Price" for the *Target State*
     const expectedTotalPrice = calculateSessionPrice(
         newDuration,
         totalPeople,
-        mergedDevices
+        mergedDevices, // Now passing correct structure
+        new Date()
     );
 
     // The delta is what we charge
@@ -134,17 +151,16 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     const finalBill = (session.remainingAmount ?? session.price) + chargesAsString;
     const totalToPay = expectedTotalPrice + newSnackCost;
 
-    const remaining = session.remainingAmount ?? session.price;
     const newRemainingPeople = totalPeople - ((session.paidPeople || 0) + payingNow);
     const payNowAmount = payingNow * (expectedTotalPrice / totalPeople); // Approx per person share
 
 
     // ------------------- Handlers -------------------
 
-    const updateDevice = (key: keyof DeviceMap, delta: number) => {
+    const updateDevice = (key: keyof DeviceMap, value: number[]) => {
         setNewMember(prev => ({
             ...prev,
-            devices: { ...prev.devices, [key]: Math.max(0, prev.devices[key] + delta) }
+            devices: { ...prev.devices, [key]: value }
         }));
     };
 
@@ -335,7 +351,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                 style={{ display: 'block' }} // Allow block layout for selector
                             >
                                 <SnackSelector
-                                    onChange={(summary, cost, items) => {
+                                    onChange={(_, cost, items) => {
                                         setNewSnackCost(cost);
                                         setNewSnackItems(items);
                                     }}

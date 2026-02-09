@@ -21,11 +21,11 @@ import { calculateSessionPrice, isFunNightTime, isNormalHourTime, isHappyHourTim
 type DeviceKeys = 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat';
 
 interface DeviceCounts {
-    ps: number;
-    pc: number;
-    vr: number;
-    wheel: number;
-    metabat: number;
+    ps: number[];
+    pc: number[];
+    vr: number[];
+    wheel: number[];
+    metabat: number[];
 }
 
 interface FormState {
@@ -56,17 +56,17 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         peopleCount: 1,
         snacks: '',
         devices: {
-            ps: 0,
-            pc: 0,
-            vr: 0,
-            wheel: 0,
-            metabat: 0
+            ps: [],
+            pc: [],
+            vr: [],
+            wheel: [],
+            metabat: []
         }
     });
 
     // State for availability
     const [availability, setAvailability] = useState<{
-        limits: DeviceCounts;
+        limits: Record<DeviceKeys, number>;
         occupied: { [key in DeviceKeys]: number[] };
     }>({
         limits: { ps: 0, pc: 0, vr: 0, wheel: 0, metabat: 0 },
@@ -80,7 +80,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         setForm(prev => ({ ...prev, [key]: value }));
     };
 
-    const updateDevice = (key: DeviceKeys, value: number) => {
+    const updateDevice = (key: DeviceKeys, value: number[]) => {
         setForm(prev => ({
             ...prev,
             devices: { ...prev.devices, [key]: value }
@@ -89,7 +89,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     const fetchAvailability = async () => {
         try {
-            const res = await axios.get<{ limits: DeviceCounts; occupied: { [key in DeviceKeys]: number[] } }>(
+            const res = await axios.get<{ limits: Record<DeviceKeys, number>; occupied: { [key in DeviceKeys]: number[] } }>(
                 'http://localhost:5000/api/sessions/availability'
             );
             setAvailability(res.data);
@@ -101,12 +101,11 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     useEffect(() => {
         if (isOpen) {
             fetchAvailability();
-            const interval = setInterval(fetchAvailability, 30000); // Poll every 5s
+            const interval = setInterval(fetchAvailability, 30000); // Poll every 30s
             return () => clearInterval(interval);
         }
     }, [isOpen]);
 
-    const PRICE_PER_HOUR_PER_PERSON = 50;
 
     const [snackCost, setSnackCost] = useState<number>(0);
 
@@ -118,7 +117,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const durationInHours = h + m / 60;
 
     // Pricing Logic
-    const deviceMap = (form.devices as unknown) as Record<string, number>;
+    const deviceMap = (form.devices as unknown) as Record<string, number[]>;
     const basePrice = calculateSessionPrice(
         durationInHours,
         form.peopleCount,
@@ -127,8 +126,8 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const totalPrice = basePrice + snackCost;
 
     const isHappyHour = isHappyHourTime();
-const isFunNight = !isHappyHour && isFunNightTime();
-const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
+    const isFunNight = !isHappyHour && isFunNightTime();
+    const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
 
 
     /* ----------------------------------- */
@@ -155,7 +154,7 @@ const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
                 duration: "00:00",
                 peopleCount: 1,
                 snacks: '',
-                devices: { ps: 0, pc: 0, vr: 0, wheel: 0, metabat: 0 }
+                devices: { ps: [], pc: [], vr: [], wheel: [], metabat: [] }
             });
 
             onClose(); // Close modal on success
@@ -188,49 +187,49 @@ const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
                             <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <FaRocket className="text-blue-500" /> Start New Session
                                 {isHappyHour && (
-    <span
-        style={{
-            color: '#16a34a',
-            fontSize: '0.7em',
-            border: '1px solid #16a34a',
-            padding: '2px 8px',
-            borderRadius: '12px',
-            marginLeft: 8
-        }}
-    >
-        ⏰ Happy Hour
-    </span>
-)}
+                                    <span
+                                        style={{
+                                            color: '#16a34a',
+                                            fontSize: '0.7em',
+                                            border: '1px solid #16a34a',
+                                            padding: '2px 8px',
+                                            borderRadius: '12px',
+                                            marginLeft: 8
+                                        }}
+                                    >
+                                        ⏰ Happy Hour
+                                    </span>
+                                )}
 
-{isFunNight && (
-    <span
-        style={{
-            color: '#ec4899',
-            fontSize: '0.7em',
-            border: '1px solid #ec4899',
-            padding: '2px 8px',
-            borderRadius: '12px',
-            marginLeft: 8
-        }}
-    >
-        🌙 Fun Night
-    </span>
-)}
+                                {isFunNight && (
+                                    <span
+                                        style={{
+                                            color: '#ec4899',
+                                            fontSize: '0.7em',
+                                            border: '1px solid #ec4899',
+                                            padding: '2px 8px',
+                                            borderRadius: '12px',
+                                            marginLeft: 8
+                                        }}
+                                    >
+                                        🌙 Fun Night
+                                    </span>
+                                )}
 
-{isNormalHour && (
-    <span
-        style={{
-            color: '#3b82f6',
-            fontSize: '0.7em',
-            border: '1px solid #3b82f6',
-            padding: '2px 8px',
-            borderRadius: '12px',
-            marginLeft: 8
-        }}
-    >
-        ☀️ Normal Hour
-    </span>
-)}
+                                {isNormalHour && (
+                                    <span
+                                        style={{
+                                            color: '#3b82f6',
+                                            fontSize: '0.7em',
+                                            border: '1px solid #3b82f6',
+                                            padding: '2px 8px',
+                                            borderRadius: '12px',
+                                            marginLeft: 8
+                                        }}
+                                    >
+                                        ☀️ Normal Hour
+                                    </span>
+                                )}
 
                             </h2>
                             <button className="close-icon-btn" onClick={onClose}>
@@ -365,7 +364,7 @@ const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
 
                         {/* Footer - Moved outside scroller for stickiness */}
                         <div className="action-bar" style={{ borderRadius: '0 0 24px 24px' }}>
-                            {Object.values(form.devices).some(val => val > 0) && (
+                            {Object.values(form.devices).some(val => val.length > 0) && (
                                 <div className="price-display">
                                     <span className="price-label">Estimated Total</span>
                                     <span className="price-val">₹{Math.round(totalPrice)}</span>
@@ -375,7 +374,7 @@ const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
                             <button
                                 className="start-session-btn"
                                 onClick={startSession}
-                                disabled={!form.customerName || (durationInHours <= 0) || !Object.values(form.devices).some(val => val > 0)}
+                                disabled={!form.customerName || (durationInHours <= 0) || !Object.values(form.devices).some(val => val.length > 0)}
                                 style={{ height: '42px', boxShadow: 'none' }} // Adjust to fit modal footer
                             >
                                 Start Session

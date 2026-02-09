@@ -59,148 +59,225 @@ export const isNormalHourTime = (date: Date = new Date()): boolean => {
 export const calculateSessionPrice = (
     durationHours: number,
     peopleCount: number,
-    devices: { [key: string]: number },
+    devices: { [key: string]: number | number[] },
     startTime: Date = new Date()
 ): number => {
     const durationMinutes = durationHours * 60;
 
-    const hasVR = (devices.vr || 0) > 0 || (devices.metabat || 0) > 0;
-    const hasWheel = (devices.wheel || 0) > 0;
-    const hasPS = (devices.ps || 0) > 0;
-    const hasPC = (devices.pc || 0) > 0;
+    // 1. Identify active machines (Arrays of IDs)
+    // Input format: { ps: [1, 2], pc: [5] }
+    // If input is legacy { ps: 1 } (number), convert to array [1] if > 0.
+    const getDeviceIds = (val: number | number[] | undefined): number[] => {
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'number' && val > 0) return [val];
+        return [];
+    };
+
+    const psIds = getDeviceIds(devices.ps);
+    const pcIds = getDeviceIds(devices.pc);
+    const vrIds = getDeviceIds(devices.vr);
+    const wheelIds = getDeviceIds(devices.wheel);
+    const metabatIds = getDeviceIds(devices.metabat);
+
+    // Counts
+    const numPS = psIds.length;
+    const numPC = pcIds.length;
+    const numVR = vrIds.length;
+    const numWheel = wheelIds.length;
+    const numMetaBat = metabatIds.length;
+
+    let grandTotal = 0;
 
     // --------------------------------------------------
-    // 0️⃣ VR & METABAT (NO HAPPY HOUR / NO TIME RULES)
+    // PEOPLE ALLOCATION LOGIC (The "Partial Booking" Core)
     // --------------------------------------------------
-    if (hasVR) {
-        if (durationMinutes <= 15) return 50 * peopleCount;
-        if (durationMinutes <= 30) return 100 * peopleCount;
-        if (durationMinutes <= 60) return 180 * peopleCount;
+    // Rule:
+    // 1. PC/VR/Wheel/MetaBat take 1 person each.
+    // 2. Remaining people are distributed to PS machines.
 
-        return (durationMinutes / 60) * 180 * peopleCount;
+    // Step A: Assign 1 person to single-user devices
+    let assignedPeople = 0;
+
+    // Priority: We just count them.
+    const peopleOnPC = numPC;
+    const peopleOnVR = numVR;
+    const peopleOnWheel = numWheel;
+    const peopleOnMetaBat = numMetaBat;
+
+    assignedPeople += peopleOnPC + peopleOnVR + peopleOnWheel + peopleOnMetaBat;
+
+    // Step B: Remaining for PS
+    const peopleOnPS = Math.max(0, peopleCount - assignedPeople);
+
+    // We will distribute `peopleOnPS` across `numPS` machines.
+    // Distribution Strategy: Even split.
+    const psDistribution: number[] = [];
+    if (numPS > 0) {
+        if (peopleOnPS === 0) {
+            for (let i = 0; i < numPS; i++) psDistribution.push(0);
+        } else {
+            const base = Math.floor(peopleOnPS / numPS);
+            const remainder = peopleOnPS % numPS;
+            for (let i = 0; i < numPS; i++) {
+                psDistribution.push(i < remainder ? base + 1 : base);
+            }
+        }
     }
 
     // --------------------------------------------------
-    // 1️⃣ HAPPY HOUR
+    // PRICING CALCULATORS (Per Machine)
     // --------------------------------------------------
-    if (isHappyHourTime(startTime)) {
-        let total = 0;
 
+    // 0️⃣ VR & METABAT (FLAT RATE - NO TIME RULES)
+    const getVRPrice = (pCount: number) => {
+        if (pCount === 0) return 0;
+        let rate = 0;
+        if (durationMinutes <= 15) rate = 50;
+        else if (durationMinutes <= 30) rate = 100;
+        else if (durationMinutes <= 60) rate = 180;
+        else rate = (durationMinutes / 60) * 180;
+        return rate * pCount;
+    };
+
+    grandTotal += numVR * getVRPrice(1); // 1 person per VR
+    grandTotal += numMetaBat * getVRPrice(1); // 1 person per MetaBat
+
+    // Time Rules
+    const isHappy = isHappyHourTime(startTime);
+    const isNormal = isNormalHourTime(startTime);
+    const isFun = isFunNightTime(startTime);
+
+    // 1️⃣ HAPPY HOUR
+    if (isHappy) {
         // PS5
-        if (hasPS) {
+        psDistribution.forEach((p: number) => {
+            if (p === 0) return;
             if (durationMinutes <= 30) {
-                total += 40 * peopleCount;
+                grandTotal += 40 * p;
             } else {
-                const base =
-                    peopleCount === 1
-                        ? 90
-                        : 45 * peopleCount;
-
+                const base = p === 1 ? 90 : 45 * p;
                 const extraMinutes = Math.max(0, durationMinutes - 60);
                 const extra30Blocks = Math.ceil(extraMinutes / 30);
-
-                total += base + (extra30Blocks * 30 * peopleCount);
+                grandTotal += base + (extra30Blocks * 30 * p);
             }
-        }
+        });
 
         // PC
-        if (hasPC) {
+        if (numPC > 0) {
+            // Price per PC (1 person)
+            let pcCost = 0;
             if (durationMinutes <= 30) {
-                total += 40 * peopleCount;
+                pcCost = 40; // 1 person
             } else {
-                const base = 50 * peopleCount;
+                const base = 50; // 1 person
                 const extraMinutes = Math.max(0, durationMinutes - 60);
                 const extra30Blocks = Math.ceil(extraMinutes / 30);
-
-                total += base + (extra30Blocks * 30 * peopleCount);
+                pcCost = base + (extra30Blocks * 30); // 1 person
             }
+            grandTotal += pcCost * numPC;
         }
 
         // Wheel
-        if (hasWheel) {
+        if (numWheel > 0) {
+            let wheelCost = 0;
             if (durationMinutes <= 30) {
-                total += 80 * peopleCount;
+                wheelCost = 80; // 1 person assumed
             } else {
-                const base = 120 * peopleCount;
+                const base = 120; // 1 person
                 const extraMinutes = Math.max(0, durationMinutes - 60);
                 const extra30Blocks = Math.ceil(extraMinutes / 30);
-
-                total += base + (extra30Blocks * 60);
+                wheelCost = base + (extra30Blocks * 60);
             }
+            grandTotal += wheelCost * numWheel;
         }
 
-        return total;
+        return grandTotal;
     }
 
-    // --------------------------------------------------
     // 2️⃣ NORMAL HOUR
-    // --------------------------------------------------
-    else if (isNormalHourTime(startTime)) {
-        if (hasWheel) {
-            if (durationMinutes <= 30) return 90 * peopleCount;
-
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            const extra30Blocks = Math.ceil(extraMinutes / 30);
-            return (150 + (extra30Blocks * 75)) * peopleCount;
+    if (isNormal) {
+        // Wheel
+        if (numWheel > 0) {
+            let wheelCost = 0;
+            if (durationMinutes <= 30) wheelCost = 90;
+            else {
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                const extra30Blocks = Math.ceil(extraMinutes / 30);
+                wheelCost = 150 + (extra30Blocks * 75);
+            }
+            grandTotal += wheelCost * numWheel;
         }
 
-        if (hasPC) {
-            if (durationHours > 3) return 50 * peopleCount * durationHours;
-
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            const extra30Blocks = Math.ceil(extraMinutes / 30);
-            return (60 + (extra30Blocks * 40)) * peopleCount;
+        // PC
+        if (numPC > 0) {
+            let pcCost = 0;
+            if (durationHours > 3) pcCost = 50 * durationHours;
+            else {
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                const extra30Blocks = Math.ceil(extraMinutes / 30);
+                pcCost = 60 + (extra30Blocks * 40);
+            }
+            grandTotal += pcCost * numPC;
         }
 
-        if (hasPS) {
+        // PS5
+        psDistribution.forEach((p: number) => {
+            if (p === 0) return;
             let baseCost;
-            if (peopleCount === 1) baseCost = 140;
-            else if (peopleCount === 2) baseCost = 120;
-            else baseCost = 50 * peopleCount;
+            if (p === 1) baseCost = 140;
+            else if (p === 2) baseCost = 120; // Flat 120 for 2 ppl?
+            else baseCost = 50 * p;
 
             const extraMinutes = Math.max(0, durationMinutes - 60);
             const extra30Blocks = Math.ceil(extraMinutes / 30);
-            return baseCost + (extra30Blocks * 40 * peopleCount);
-        }
+            grandTotal += baseCost + (extra30Blocks * 40 * p);
+        });
 
-        return 0;
+        return grandTotal;
     }
 
-    // --------------------------------------------------
     // 3️⃣ FUN NIGHT
-    // --------------------------------------------------
-    else if (isFunNightTime(startTime)) {
-        if (hasWheel) {
-            if (durationMinutes <= 30) return 90 * peopleCount;
-
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            const extra30Blocks = Math.ceil(extraMinutes / 30);
-            return (150 + (extra30Blocks * 75)) * peopleCount;
+    if (isFun) {
+        // Wheel
+        if (numWheel > 0) {
+            let wheelCost = 0;
+            if (durationMinutes <= 30) wheelCost = 90;
+            else {
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                const extra30Blocks = Math.ceil(extraMinutes / 30);
+                wheelCost = 150 + (extra30Blocks * 75);
+            }
+            grandTotal += wheelCost * numWheel;
         }
 
-        if (hasPC) {
-            if (durationHours > 3) return 50 * peopleCount * durationHours;
-
-            const extraMinutes = Math.max(0, durationMinutes - 60);
-            const extra30Blocks = Math.ceil(extraMinutes / 30);
-            return (50 + (extra30Blocks * 30)) * peopleCount;
+        // PC
+        if (numPC > 0) {
+            let pcCost = 0;
+            if (durationHours > 3) pcCost = 50 * durationHours;
+            else {
+                const extraMinutes = Math.max(0, durationMinutes - 60);
+                const extra30Blocks = Math.ceil(extraMinutes / 30);
+                pcCost = 50 + (extra30Blocks * 30);
+            }
+            grandTotal += pcCost * numPC;
         }
 
-        if (hasPS) {
-            const baseCost =
-                peopleCount === 1 ? 100 : 50 * peopleCount;
-
+        // PS5
+        psDistribution.forEach((p: number) => {
+            if (p === 0) return;
+            const baseCost = p === 1 ? 100 : 50 * p;
             const extraMinutes = Math.max(0, durationMinutes - 60);
             const extra30Blocks = Math.ceil(extraMinutes / 30);
-            return baseCost + (extra30Blocks * 30 * peopleCount);
-        }
+            grandTotal += baseCost + (extra30Blocks * 30 * p);
+        });
 
-        return 0;
+        return grandTotal;
     }
 
-    // --------------------------------------------------
     // 4️⃣ FALLBACK
-    // --------------------------------------------------
-    return durationHours * peopleCount * 50;
-};
+    if (grandTotal === 0 && (numPS + numPC + numWheel + numVR + numMetaBat) > 0) {
+        return durationHours * peopleCount * 50;
+    }
 
+    return grandTotal;
+};

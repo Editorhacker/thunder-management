@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaPlaystation,
@@ -17,25 +17,22 @@ import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import axios from 'axios';
 import './BookingModal.css';
 
+import DeviceDropdown from './DeviceDropdown'; // Imported shared component
+import { calculateSessionPrice } from '../../utils/pricing';
+
 interface Props {
   onClose: () => void;
   onSuccess: () => void;
 }
 
-type DeviceType = 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat';
+// Device Dropdown moved to separate file
 
-interface DeviceCounts {
-  ps: number;
-  pc: number;
-  vr: number;
-  wheel: number;
-  metabat: number;
-}
+type DeviceType = 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat';
 
 interface DeviceInfo {
   key: DeviceType;
   label: string;
-  icon: JSX.Element;
+  icon: React.ReactNode;
 }
 
 const DEVICES: DeviceInfo[] = [
@@ -45,62 +42,6 @@ const DEVICES: DeviceInfo[] = [
   { key: 'wheel', label: 'Racing Wheel', icon: <GiSteeringWheel /> },
   { key: 'metabat', label: 'Meta Bat', icon: <GiCricketBat /> }
 ];
-
-// Device Dropdown Component
-interface DeviceDropdownProps {
-  label: string;
-  limit: number;
-  value: number;
-  occupied: number[];
-  icon: React.ReactNode;
-  onChange: (val: number) => void;
-}
-
-const DeviceDropdown: React.FC<DeviceDropdownProps> = ({
-  label,
-  limit,
-  value,
-  occupied,
-  icon,
-  onChange
-}) => {
-  const isActive = value > 0;
-  const availableCount = limit - occupied.length;
-  const isEssentiallyFull = availableCount <= 0;
-
-  return (
-    <div className={`device-dropdown-card ${isActive ? 'active' : ''} ${isEssentiallyFull ? 'sold-out' : ''}`}>
-      <div className="device-icon-wrapper">
-        {icon}
-      </div>
-      <div className="device-info">
-        <span className="device-name">{label}</span>
-        <span className="device-stock">
-          {isEssentiallyFull ? 'Fully Booked' : `${availableCount} available`}
-        </span>
-      </div>
-
-      <div className="dropdown-control" onClick={(e) => e.stopPropagation()}>
-        <select
-          className="mini-select"
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          disabled={isEssentiallyFull}
-        >
-          <option value={0}>None</option>
-          {Array.from({ length: limit }, (_, i) => i + 1).map(num => {
-            const isTaken = occupied.includes(num);
-            return (
-              <option key={num} value={num} disabled={isTaken}>
-                {num} {isTaken ? '(Booked)' : ''}
-              </option>
-            );
-          })}
-        </select>
-      </div>
-    </div>
-  );
-};
 
 const BookingModal = ({ onClose, onSuccess }: Props) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -112,18 +53,18 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
     bookingTime: '',
     bookingEndTime: '',
     devices: {
-      ps: 0,
-      pc: 0,
-      vr: 0,
-      wheel: 0,
-      metabat: 0
-    }
+      ps: [],
+      pc: [],
+      vr: [],
+      wheel: [],
+      metabat: []
+    } as Record<string, number[]>
   });
 
   // State for time-specific availability
   const [timeBasedAvailability, setTimeBasedAvailability] = useState<{
-    limits: DeviceCounts;
-    occupied: { [key in DeviceType]: number[] };
+    limits: Record<string, number>;
+    occupied: { [key: string]: number[] };
   }>({
     limits: { ps: 0, pc: 0, vr: 0, wheel: 0, metabat: 0 },
     occupied: { ps: [], pc: [], vr: [], wheel: [], metabat: [] }
@@ -142,7 +83,7 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       const startDateTime = new Date(`${form.bookingDate}T${form.bookingTime}`);
       const endDateTime = new Date(`${form.bookingDate}T${form.bookingEndTime}`);
 
-      const res = await axios.get<{ limits: DeviceCounts; occupied: { [key in DeviceType]: number[] } }>(
+      const res = await axios.get(
         'http://localhost:5000/api/sessions/availability-for-time',
         {
           params: {
@@ -154,9 +95,9 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       setTimeBasedAvailability(res.data);
     } catch (e) {
       console.error("Failed to fetch time-based availability", e);
-      // Fallback to default limits
+      // Fallback
       setTimeBasedAvailability({
-        limits: { ps: 5, pc: 10, vr: 3, wheel: 2, metabat: 4 },
+        limits: { ps: 6, pc: 5, vr: 1, wheel: 1, metabat: 1 },
         occupied: { ps: [], pc: [], vr: [], wheel: [], metabat: [] }
       });
     } finally {
@@ -171,7 +112,18 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
     }
   }, [currentStep]);
 
-  const updateDevice = (key: DeviceType, value: number) => {
+  const updateDevice = (key: string, value: number[]) => {
+    // Check if adding devices exceeds people count
+    const currentDeviceCount = getTotalDevices();
+    const newDeviceTypeCount = value.length;
+    const oldDeviceTypeCount = form.devices[key].length;
+    const diff = newDeviceTypeCount - oldDeviceTypeCount;
+
+    if (diff > 0 && (currentDeviceCount + diff) > form.peopleCount) {
+      alert(`You cannot select more devices than the number of people (${form.peopleCount}).`);
+      return;
+    }
+
     setForm(prev => ({
       ...prev,
       devices: {
@@ -182,15 +134,15 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
   };
 
   const getTotalDevices = () => {
-    return Object.values(form.devices).reduce((sum, count) => sum + count, 0);
+    return Object.values(form.devices).reduce((sum, list) => sum + list.length, 0);
   };
 
   const getSelectedDevices = () => {
     return Object.entries(form.devices)
-      .filter(([_, count]) => count > 0)
-      .map(([key, count]) => {
+      .filter(([_, list]) => list.length > 0)
+      .map(([key, list]) => {
         const device = DEVICES.find(d => d.key === key);
-        return { ...device, count };
+        return { ...device, count: list.length, ids: list };
       });
   };
 
@@ -203,7 +155,7 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       case 2:
         return form.bookingDate && form.bookingTime && form.bookingEndTime;
       case 3:
-        return getTotalDevices() > 0;
+        return getTotalDevices() > 0 && getTotalDevices() <= form.peopleCount;
       default:
         return false;
     }
@@ -239,11 +191,30 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
 
       alert('✅ Booking created successfully!');
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Failed to create booking. Please try again.');
+      alert(error.response?.data?.message || 'Failed to create booking.');
     }
   };
+
+  // ------------------- Price Calculation Helper -------------------
+  const getEstimatedPrice = () => {
+    if (!form.bookingDate || !form.bookingTime || !form.bookingEndTime) return 0;
+
+    const start = new Date(`${form.bookingDate}T${form.bookingTime}`);
+    const end = new Date(`${form.bookingDate}T${form.bookingEndTime}`);
+    const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+
+    if (duration <= 0) return 0;
+
+    return calculateSessionPrice(
+      duration,
+      form.peopleCount,
+      form.devices, // Expects Record<string, number[]>
+      start // Use booking start time for pricing logic (Normal vs Fun)
+    );
+  };
+
 
   const getFormattedSummary = () => {
     const start = new Date(`${form.bookingDate}T${form.bookingTime}`);
@@ -467,8 +438,9 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
               >
                 <h3 className="step-title">Select Gaming Devices</h3>
                 <p className="step-description">
-                  Available devices for {form.bookingDate} at {form.bookingTime} - {form.bookingEndTime}
-                  {getTotalDevices() > 0 && ` (${getTotalDevices()} selected)`}
+                  {getTotalDevices() > 0
+                    ? `${getTotalDevices()} devices selected`
+                    : "Choose from available devices for this time slot"}
                 </p>
 
                 {loadingAvailability ? (
@@ -547,7 +519,13 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
                     <div className="summary-item">
                       <span className="summary-label">Devices:</span>
                       <span className="summary-value">
-                        {getSelectedDevices().map(d => `${d?.label} #${d.count}`).join(', ')}
+                        {getSelectedDevices().map(d => `${d?.label} #${d?.ids?.join(', #')}`).join(', ')}
+                      </span>
+                    </div>
+                    <div className="summary-item" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+                      <span className="summary-label">Estimated Cost:</span>
+                      <span className="summary-value" style={{ color: '#ec4899', fontWeight: 'bold' }}>
+                        ₹{getEstimatedPrice().toFixed(0)}
                       </span>
                     </div>
                   </div>

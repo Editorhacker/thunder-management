@@ -241,6 +241,54 @@
     opacity: 1;
 }
 
+/* Device Chips */
+.device-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: center;
+    width: 100%;
+    margin-top: auto;
+}
+
+.device-chip {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    color: #a1a1aa;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.device-chip:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.device-chip.selected {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.device-chip.occupied {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    cursor: not-allowed;
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
 /* Footer Actions */
 .action-footer {
     display: flex;

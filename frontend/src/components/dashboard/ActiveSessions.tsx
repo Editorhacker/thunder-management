@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { FaPlaystation, FaDesktop, FaVrCardboard, FaClock, FaGamepad } from 'react-icons/fa';
+import { FaPlaystation, FaDesktop, FaVrCardboard, FaGamepad } from 'react-icons/fa';
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import UpdateSessionModal from './UpdateSessionModal';
 import './ActiveSessions.css';
@@ -24,7 +24,7 @@ const DeviceIcon = ({ type }: { type: string }) => {
 
 
 const socket = io('http://localhost:5000', {
-    transports: ['websocket']
+  transports: ['websocket']
 });
 
 
@@ -36,12 +36,12 @@ interface ActiveSession {
   customer: string;
   startTime: string;   // ISO
   duration: number;    // hours
-  peopleCount: number;   // 🔥
-  price: number;         // 🔥
+  peopleCount: number;
+  price: number;
   paidAmount?: number;
   remainingAmount?: number;
 
-  devices: ('ps' | 'pc' | 'vr' | 'wheel' | 'metabat')[];
+  devices: { type: 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat'; id: number | null }[];
   status: string;
 }
 
@@ -99,14 +99,46 @@ const ActiveSessions = () => {
   }, []);
 
   /* ---------------------------------------
-     Timer for UI countdown ONLY
+     Timer for UI countdown AND Auto-Complete Logic
   --------------------------------------- */
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const processingRef = useState<Set<string>>(new Set())[0]; // Track processing IDs
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setCurrentTime(now);
+
+      // Check for sessions to auto-complete (expired by > 30 seconds)
+      sessions.forEach(session => {
+        const start = new Date(session.startTime).getTime();
+        const totalDurationMs = session.duration * 60 * 60 * 1000;
+        const end = start + totalDurationMs;
+        const remaining = end - now;
+
+        // If time is up by more than 30 seconds (-30000ms)
+        if (remaining < -30000 && !processingRef.has(session.id)) {
+          processingRef.add(session.id);
+          console.log(`Auto-completing session ${session.id} because time is up > 30s`);
+
+          axios.post(`http://localhost:5000/api/sessions/complete/${session.id}`)
+            .then(() => {
+              // Success - socket will remove it, or we can manually remove
+              // If selected session matches, close modal
+              if (selectedSession && selectedSession.id === session.id) {
+                setSelectedSession(null);
+              }
+            })
+            .catch(e => {
+              console.error(`Failed to auto-complete session ${session.id}`, e);
+              processingRef.delete(session.id); // Retry next tick
+            });
+        }
+      });
+
+    }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [sessions, selectedSession]); // Dep depends on sessions list
 
   const isFunNight = isFunNightTime();
   const isNormalHour = isNormalHourTime();
@@ -123,16 +155,25 @@ const ActiveSessions = () => {
     const elapsed = now - start;
     const remaining = end - now;
 
-    const progress = Math.min(100, Math.max(0, (elapsed / totalDurationMs) * 100));
-    const isUrgent = remaining < 10 * 60 * 1000; // Less than 10 mins
-
+    // UI Logic for completed
     let timeText = "Completed";
     if (remaining > 0) {
       const hrs = Math.floor(remaining / (1000 * 60 * 60));
       const mins = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
       const secs = Math.floor((remaining % (1000 * 60)) / 1000);
       timeText = `${hrs > 0 ? `${hrs}h ` : ''}${mins}m ${secs}s`;
+    } else {
+      // Show negative countdown or "Vanishing..."
+      if (remaining > -30000) {
+        const vanishingIn = Math.ceil((30000 + remaining) / 1000);
+        timeText = `Vanishing in ${vanishingIn}s`;
+      } else {
+        timeText = "Vanishing...";
+      }
     }
+
+    const progress = Math.min(100, Math.max(0, (elapsed / totalDurationMs) * 100));
+    const isUrgent = remaining < 10 * 60 * 1000 && remaining > 0;
 
     return { progress, isUrgent, timeText, remaining };
   };
@@ -204,10 +245,12 @@ const ActiveSessions = () => {
 
                 {/* Devices */}
                 <div className="devices-mini-grid">
-                  {Array.from(new Set(session.devices)).map((dev, i) => (
-                    <div key={i} className={`device-tag ${dev}`}>
-                      <DeviceIcon type={dev} />
-                      <span style={{ textTransform: 'uppercase' }}>{dev}</span>
+                  {session.devices.map((dev, i) => (
+                    <div key={i} className={`device-tag ${dev.type}`}>
+                      <DeviceIcon type={dev.type} />
+                      <span style={{ textTransform: 'uppercase' }}>
+                        {dev.type} {dev.id ? `#${dev.id}` : ''}
+                      </span>
                     </div>
                   ))}
                 </div>

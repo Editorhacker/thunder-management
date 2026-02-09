@@ -10,12 +10,17 @@ import './UpcomingBookings.css';
 
 type DeviceType = 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat';
 
+interface BookingDevice {
+  type: DeviceType;
+  id: number | null;
+}
+
 interface Booking {
   id: string;
   name: string;
   time: string;
   endTime?: string;
-  devices: DeviceType[];
+  devices: BookingDevice[];
   peopleCount?: number;
   duration?: number;
 }
@@ -84,17 +89,7 @@ const UpcomingBookings = () => {
     }
   };
 
-  // Get device label
-  const getDeviceLabel = (device: DeviceType) => {
-    const labels = {
-      ps: 'PlayStation',
-      pc: 'PC Gaming',
-      vr: 'VR Station',
-      wheel: 'Racing Wheel',
-      metabat: 'Meta Bat'
-    };
-    return labels[device] || device.toUpperCase();
-  };
+
 
   // Calculate time until booking
   const getTimeUntil = (bookingTime: string) => {
@@ -290,10 +285,12 @@ const UpcomingBookings = () => {
                 </div>
 
                 <div className="booking-devices-section">
-                  {Array.from(new Set(booking.devices)).map((device, i) => (
-                    <div key={i} className="device-chip">
-                      {getDeviceIcon(device)}
-                      <span>{getDeviceLabel(device)}</span>
+                  {booking.devices.map((dev, i) => (
+                    <div key={i} className={`device-tag ${dev.type}`}>
+                      {getDeviceIcon(dev.type)}
+                      <span style={{ textTransform: 'uppercase' }}>
+                        {dev.type} {dev.id ? `#${dev.id}` : ''}
+                      </span>
                     </div>
                   ))}
                 </div>
