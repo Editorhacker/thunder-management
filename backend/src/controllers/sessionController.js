@@ -122,6 +122,18 @@ const createSession = async (req, res) => {
 
         const docRef = await db.collection('sessions').add(newSession);
 
+        global.io.emit('session:started', {
+  id: docRef.id,
+  customer: customerName,
+  startTime: newSession.startTime,
+  duration: newSession.duration,
+  peopleCount: newSession.peopleCount,
+  price: newSession.price,
+  remainingAmount: newSession.remainingAmount,
+  devices: transformDevicesToArray(newSession.devices),
+  status: 'active'
+});
+
         res.status(201).json({
             message: 'Session started successfully',
             sessionId: docRef.id
@@ -403,6 +415,11 @@ const updateSession = async (req, res) => {
         });
 
 
+        global.io.emit('session:updated', {
+  sessionId: id
+});
+
+
         res.json({ message: "Session updated successfully" });
 
     } catch (error) {
@@ -421,6 +438,8 @@ const completeSession = async (req, res) => {
             completedAt: new Date().toISOString()
         });
 
+
+        global.io.emit('session:completed', { sessionId: id });
         res.json({ message: 'Session completed' });
     } catch (err) {
         console.error(err);
@@ -546,6 +565,10 @@ const convertBookingsToSessions = async (req, res) => {
         }
 
         console.log(`✅ Converted ${convertedCount} booking(s) to active sessions`);
+global.io.emit('booking:converted', {
+  bookingId: doc.id,
+  sessionId: sessionRef.id
+});
 
         return res
             ? res.status(200).json({
@@ -555,6 +578,7 @@ const convertBookingsToSessions = async (req, res) => {
             })
             : { converted: convertedCount, conversions };
 
+            
     } catch (error) {
         console.error('❌ Error converting bookings:', error);
         return res

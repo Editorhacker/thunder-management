@@ -4,6 +4,7 @@ import { FaPlaystation, FaDesktop, FaVrCardboard, FaClock, FaGamepad } from 'rea
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import UpdateSessionModal from './UpdateSessionModal';
 import './ActiveSessions.css';
+import { io } from 'socket.io-client';
 import { isFunNightTime, isNormalHourTime } from '../../utils/pricing';
 
 /* ---------------------------------------
@@ -20,6 +21,12 @@ const DeviceIcon = ({ type }: { type: string }) => {
     default: return <FaGamepad size={size} />;
   }
 };
+
+
+const socket = io('http://localhost:5000', {
+    transports: ['websocket']
+});
+
 
 /* ---------------------------------------
    Types
@@ -41,63 +48,68 @@ interface ActiveSession {
 const ActiveSessions = () => {
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<ActiveSession | null>(null);
-
   const [loading, setLoading] = useState(true);
 
   /* ---------------------------------------
-     Fetch Active Sessions (initial)
+     Initial fetch (ONLY ONCE)
   --------------------------------------- */
   const fetchSessions = async () => {
     try {
       const res = await axios.get('http://localhost:5000/api/sessions/active');
       setSessions(res.data);
-    } catch (error) {
-      console.error('Failed to load active sessions', error);
+    } catch (err) {
+      console.error('Failed to load active sessions', err);
     } finally {
       setLoading(false);
     }
   };
 
+  /* ---------------------------------------
+     Socket listeners
+  --------------------------------------- */
   useEffect(() => {
     fetchSessions();
+
+    socket.on('session:started', (session: ActiveSession) => {
+      setSessions(prev => [...prev, session]);
+    });
+
+    socket.on('session:completed', ({ sessionId }) => {
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+    });
+
+    socket.on('session:updated', async () => {
+      // Rare event → safe to refresh list once
+      const res = await axios.get('http://localhost:5000/api/sessions/active');
+      setSessions(res.data);
+    });
+
+    socket.on('booking:converted', async () => {
+      // booking → session happened
+      const res = await axios.get('http://localhost:5000/api/sessions/active');
+      setSessions(res.data);
+    });
+
+    return () => {
+      socket.off('session:started');
+      socket.off('session:completed');
+      socket.off('session:updated');
+      socket.off('booking:converted');
+    };
   }, []);
 
-  // Real-time ticking
+  /* ---------------------------------------
+     Timer for UI countdown ONLY
+  --------------------------------------- */
   const [currentTime, setCurrentTime] = useState(Date.now());
-  const isFunNight = isFunNightTime();
-  const isNormalHour = isNormalHourTime();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  /* ---------------------------------------
-     Auto close & refresh every 30s
-  --------------------------------------- */
-  useEffect(() => {
-    const interval = setInterval(async () => {
-
-      // 1. close expired sessions
-      for (const s of sessions) {
-        const start = new Date(s.startTime).getTime();
-        const end = start + s.duration * 60 * 60 * 1000;
-
-        if (Date.now() > end) {
-          await axios.post(
-            `http://localhost:5000/api/sessions/complete/${s.id}`
-          );
-        }
-      }
-
-      // 2. reload list
-      const res = await axios.get('http://localhost:5000/api/sessions/active');
-      setSessions(res.data);
-
-    }, 30000); // every 10 seconds
-
-    return () => clearInterval(interval);
-  }, [sessions]);
+  const isFunNight = isFunNightTime();
+  const isNormalHour = isNormalHourTime();
 
   /* ---------------------------------------
      Remaining time helper
