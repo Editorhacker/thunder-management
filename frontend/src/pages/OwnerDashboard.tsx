@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -6,8 +5,8 @@ import {
 import {
     FaCalendarAlt, FaDownload, FaChartLine, FaRobot, FaUserCog
 } from 'react-icons/fa';
-import * as XLSX from 'xlsx';
 
+import { motion } from 'framer-motion';
 import DashboardLayout from '../layouts/DashboardLayout';
 import {
     KPI_STATS, REVENUE_TRENDS
@@ -38,7 +37,7 @@ const OwnerDashboard: React.FC = () => {
     // Data Filtering logic
     const currentStats = useMemo(() => {
         const key = timeFilter.replace(' ', '').replace(/^./, str => str.toLowerCase());
-        return KPI_STATS[key] || KPI_STATS['today'];
+        return KPI_STATS[key as keyof typeof KPI_STATS] || KPI_STATS['today'];
     }, [timeFilter]);
 
     const handleDownload = () => {
@@ -57,7 +56,12 @@ const OwnerDashboard: React.FC = () => {
         <DashboardLayout>
             <div className="owner-dashboard-container">
                 {/* 1. Header Section */}
-                <header className="dashboard-header">
+                <motion.header
+                    className="dashboard-header"
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                >
                     <div className="header-left">
                         <h1 className="header-title">Command Center</h1>
                         <p className="header-subtitle"><FaUserCog className="inline-icon" /> Welcome back, Owner</p>
@@ -76,11 +80,11 @@ const OwnerDashboard: React.FC = () => {
                             variant="primary"
                         />
                     </div>
-                </header>
+                </motion.header>
 
                 {/* 2. KPI Hero Section (Top 4 Stats) */}
                 <section className="hero-stats-grid">
-                    {currentStats.map((stat, idx) => (
+                    {currentStats.map((stat: { label: string; value: string | number; change: string }, idx: number) => (
                         <QuickStat
                             key={idx}
                             label={stat.label}

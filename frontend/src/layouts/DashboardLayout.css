@@ -1,0 +1,54 @@
+.layout-container {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--bg-dark);
+}
+
+.main-content {
+    flex: 1;
+    margin-left: 280px;
+    /* Matches Sidebar width */
+    display: flex;
+    flex-direction: column;
+    width: calc(100% - 280px);
+    transition: margin-left 0.3s ease, width 0.3s ease;
+    position: relative;
+}
+
+.content-wrapper {
+    padding: 2rem;
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+}
+
+/* Add a subtle background pattern or gradient for the main area */
+.layout-container::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+        radial-gradient(circle at 15% 50%, rgba(26, 60, 94, 0.05) 0%, transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(251, 191, 36, 0.03) 0%, transparent 25%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+@media (max-width: 1024px) {
+    .main-content {
+        margin-left: 80px;
+        /* If we had a collapsed state, currently sidebar shrinks */
+        width: calc(100% - 80px);
+    }
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+}

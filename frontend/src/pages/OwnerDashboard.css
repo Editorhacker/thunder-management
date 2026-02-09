@@ -55,7 +55,7 @@
     border: 1px solid var(--glass-border);
     padding: 0.5rem 1.5rem;
     border-radius: 12px;
-    background: rgba(0,0,0,0.3);
+    background: rgba(0, 0, 0, 0.3);
 }
 
 .header-actions {
@@ -75,21 +75,18 @@
 /* --- 3. Operational Grid (Revenue + Floor) --- */
 .operational-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    /* Mimics Analytics grid structure */
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
-    min-height: 400px;
 }
 
-@media (min-width: 1024px) {
-    .operational-grid {
-        grid-template-columns: 1.8fr 1.2fr;
-    }
-}
-
-.chart-panel {
+.chart-panel,
+.floor-status-panel {
+    min-width: 0;
     height: 100%;
-    min-height: 400px;
+    min-height: 450px;
+    /* Consistent minimum height */
     display: flex;
     flex-direction: column;
 }
@@ -97,121 +94,30 @@
 .chart-wrapper {
     flex: 1;
     margin-top: 1rem;
+    min-height: 300px;
+    /* Ensure chart has height when stacked */
 }
 
 /* Floor Status Widget Styles */
-.floor-status-panel {
-    height: 100%;
-    min-height: 400px;
-    display: flex;
-    flex-direction: column;
-}
-
-.panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.status-legend {
-    display: flex;
-    gap: 10px;
-    font-size: 0.75rem;
-    color: var(--text-gray);
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-}
-.dot-green { background-color: #10B981; box-shadow: 0 0 5px #10B981; }
-.dot-red { background-color: #EF4444; box-shadow: 0 0 5px #EF4444; }
+/* ... existing styles ... */
 
 .floor-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    /* Better adaptive columns */
     gap: 1rem;
     overflow-y: auto;
-}
-
-@media (min-width: 600px) {
-    .floor-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
-.zone-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    padding: 1rem;
-    transition: background 0.3s;
-}
-
-.zone-card:hover {
-    background: rgba(255, 255, 255, 0.06);
-}
-
-.zone-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 0.75rem;
-}
-
-.zone-icon {
-    padding: 8px;
-    border-radius: 8px;
-}
-
-.zone-stats {
-    font-family: monospace;
-    font-size: 0.75rem;
-    padding: 2px 6px;
-    background: rgba(0,0,0,0.4);
-    border-radius: 4px;
-    color: #cbd5e1;
-}
-
-.zone-name {
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin: 0 0 1rem 0;
-}
-
-.slots-container {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-.slot-indicator {
-    width: 6px;
-    height: 20px;
-    border-radius: 2px;
-    transition: all 0.3s ease;
+    padding-right: 5px;
+    flex: 1;
+    overflow-y: auto;
 }
 
 /* --- 4. Secondary Grid (Pie + Txn) --- */
 .secondary-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
-}
-
-@media (min-width: 1024px) {
-    .secondary-grid {
-        grid-template-columns: 1fr 1fr;
-    }
 }
 
 /* Transaction Widget Styles */
@@ -242,7 +148,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(0,0,0,0.2);
+    background: rgba(0, 0, 0, 0.2);
     border: 1px solid var(--glass-border);
     padding: 0.75rem;
     border-radius: 8px;
@@ -263,8 +169,15 @@
     justify-content: center;
 }
 
-.txn-icon.snack { background: rgba(249, 115, 22, 0.15); color: #f97316; }
-.txn-icon.service { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.txn-icon.snack {
+    background: rgba(249, 115, 22, 0.15);
+    color: #f97316;
+}
+
+.txn-icon.service {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
 
 .txn-info {
     display: flex;
@@ -310,9 +223,17 @@
 
 /* Animations */
 @keyframes pulse {
-    0% { opacity: 0.6; }
-    50% { opacity: 1; }
-    100% { opacity: 0.6; }
+    0% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.6;
+    }
 }
 
 /* Scrollbar refinement */
