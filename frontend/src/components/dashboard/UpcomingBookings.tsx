@@ -50,7 +50,7 @@ const UpcomingBookings = () => {
 
   const fetchBookings = async () => {
     try {
-      const res = await axios.get('https://thunder-management.vercel.app/api/sessions/upcoming');
+      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/upcoming');
       setBookings(res.data);
     } catch (error) {
       console.error('Failed to load upcoming bookings', error);
@@ -65,7 +65,7 @@ const UpcomingBookings = () => {
     }
 
     try {
-      await axios.delete(`https://thunder-management.vercel.app/api/sessions/booking/${id}`);
+      await axios.delete(`https://thunder-management.onrender.com/api/sessions/booking/${id}`);
       fetchBookings(); // Refresh list
     } catch (error) {
       console.error('Error deleting booking:', error);

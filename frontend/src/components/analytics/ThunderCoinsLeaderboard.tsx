@@ -19,7 +19,7 @@ const ThunderCoinsLeaderboard = () => {
     const fetchData = async () => {
         try {
             const res = await axios.get(
-                `https://thunder-management.vercel.app/api/battles/thunder-leaderboard?range=${range}`
+                `https://thunder-management.onrender.com/api/battles/thunder-leaderboard?range=${range}`
             );
             setData(res.data);
         } catch (err) {

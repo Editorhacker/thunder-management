@@ -23,7 +23,7 @@ const RecentTransactions: React.FC<Props> = ({ timeFilter }) => {
       try {
         const range = timeFilter.toLowerCase().replace(' ', '');
         const res = await fetch(
-          `https://thunder-management.vercel.app/api/owner/transactions?range=${range}`
+          `https://thunder-management.onrender.com/api/owner/transactions?range=${range}`
         );
         const data = await res.json();
         setTransactions(data);

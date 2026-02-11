@@ -56,7 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // 🔥 Attach token globally
         axios.defaults.headers.common.Authorization = `Bearer ${token}`;
 
-        const res = await axios.get('https://thunder-management.vercel.app/api/auth/me');
+        const res = await axios.get('https://thunder-management.onrender.com/api/auth/me');
 
         setUser({
           uid: res.data.user.uid,
