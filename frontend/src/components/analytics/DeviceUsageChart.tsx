@@ -23,7 +23,7 @@ const DeviceUsageChart: React.FC = () => {
     useEffect(() => {
         const fetchDeviceUsage = async () => {
             try {
-                const res = await axios.get('https://thunder-management.vercel.app//api/analytics/deviceusage');
+                const res = await axios.get('https://thunder-management.vercel.app/api/analytics/deviceusage');
 
                 // 🔒 Safety: Recharts needs array
                 if (Array.isArray(res.data)) {

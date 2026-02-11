@@ -60,7 +60,7 @@ const SnackSelector: React.FC<Props> = ({ onChange }) => {
   useEffect(() => {
     const fetchSnacks = async () => {
       try {
-        const res = await axios.get('https://thunder-management.vercel.app//api/snacks');
+        const res = await axios.get('https://thunder-management.vercel.app/api/snacks');
         const data = res.data.map((s: any) => ({
           id: s.id,
           name: s.name,

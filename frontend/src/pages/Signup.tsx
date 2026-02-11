@@ -77,7 +77,7 @@ const Signup = () => {
             await sendEmailVerification(userCredential.user);
 
             /* 3️⃣ Save profile via backend */
-            await axios.post('https://thunder-management.vercel.app//api/auth/signup', {
+            await axios.post('https://thunder-management.vercel.app/api/auth/signup', {
                 uid: userCredential.user.uid,
                 name,
                 email,

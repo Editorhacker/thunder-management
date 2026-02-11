@@ -11,7 +11,7 @@ interface Subscription {
   endDate: string;
 }
 
-const API = 'https://thunder-management.vercel.app//api/subscription';
+const API = 'https://thunder-management.vercel.app/api/subscription';
 
 const SubscriptionCard: React.FC = () => {
   const [subs, setSubs] = useState<Subscription[]>([]);

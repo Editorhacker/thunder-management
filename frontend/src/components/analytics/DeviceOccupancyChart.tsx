@@ -64,7 +64,7 @@ const DeviceOccupancyChart: React.FC = () => {
     useEffect(() => {
         const fetchOccupancy = async () => {
             try {
-                const res = await axios.get('https://thunder-management.vercel.app//api/analytics/deviceoccupancy');
+                const res = await axios.get('https://thunder-management.vercel.app/api/analytics/deviceoccupancy');
                 setData([
                     { name: 'Occupied', value: res.data.occupied },
                     { name: 'Remaining', value: res.data.remaining }
