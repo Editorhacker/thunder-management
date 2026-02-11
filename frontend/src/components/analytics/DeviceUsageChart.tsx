@@ -23,7 +23,7 @@ const DeviceUsageChart: React.FC = () => {
     useEffect(() => {
         const fetchDeviceUsage = async () => {
             try {
-                const res = await axios.get('http://localhost:5000/api/analytics/deviceusage');
+                const res = await axios.get('https://thunder-management.vercel.app//api/analytics/deviceusage');
 
                 // 🔒 Safety: Recharts needs array
                 if (Array.isArray(res.data)) {
@@ -69,10 +69,10 @@ const DeviceUsageChart: React.FC = () => {
             <div style={{ flex: 1, width: "100%", height: "100%" }}>
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-    data={data}
-    layout="vertical"
-    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
->
+                        data={data}
+                        layout="vertical"
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
 
                         <CartesianGrid
                             strokeDasharray="3 3"

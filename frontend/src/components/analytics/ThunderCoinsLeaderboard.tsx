@@ -19,7 +19,7 @@ const ThunderCoinsLeaderboard = () => {
     const fetchData = async () => {
         try {
             const res = await axios.get(
-                `http://localhost:5000/api/battles/thunder-leaderboard?range=${range}`
+                `https://thunder-management.vercel.app//api/battles/thunder-leaderboard?range=${range}`
             );
             setData(res.data);
         } catch (err) {
@@ -72,15 +72,14 @@ const ThunderCoinsLeaderboard = () => {
                         <div key={item.phone} className="thunder-leaderboard-item">
                             {/* Rank */}
                             <div
-                                className={`thunder-rank-badge ${
-                                    index === 0
+                                className={`thunder-rank-badge ${index === 0
                                         ? 'rank-1'
                                         : index === 1
-                                        ? 'rank-2'
-                                        : index === 2
-                                        ? 'rank-3'
-                                        : 'rank-default'
-                                }`}
+                                            ? 'rank-2'
+                                            : index === 2
+                                                ? 'rank-3'
+                                                : 'rank-default'
+                                    }`}
                             >
                                 {index === 0 ? <FaCrown /> : index + 1}
                             </div>

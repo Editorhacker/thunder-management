@@ -68,7 +68,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     });
 
     useEffect(() => {
-        axios.get('http://localhost:5000/api/sessions/availability')
+        axios.get('https://thunder-management.vercel.app//api/sessions/availability')
             .then(res => setAvailability(res.data))
             .catch(err => console.error("Failed to fetch availability", err));
     }, []);
@@ -168,7 +168,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         if (!window.confirm("Are you sure you want to delete this session? This cannot be undone.")) return;
 
         try {
-            await axios.delete(`http://localhost:5000/api/sessions/delete/${session.id}`);
+            await axios.delete(`https://thunder-management.vercel.app//api/sessions/delete/${session.id}`);
             alert("Session deleted successfully");
             onClose();
         } catch (err) {
@@ -194,7 +194,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
             };
 
             await axios.post(
-                `http://localhost:5000/api/sessions/update/${session.id}`,
+                `https://thunder-management.vercel.app//api/sessions/update/${session.id}`,
                 payload
             );
 

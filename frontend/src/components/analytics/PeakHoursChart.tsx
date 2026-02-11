@@ -23,7 +23,7 @@ const PeakHoursChart: React.FC = () => {
     useEffect(() => {
         const fetchPeakHours = async () => {
             try {
-                const res = await axios.get('http://localhost:5000/api/analytics/peakhours');
+                const res = await axios.get('https://thunder-management.vercel.app//api/analytics/peakhours');
 
                 if (Array.isArray(res.data)) {
                     setData(res.data);

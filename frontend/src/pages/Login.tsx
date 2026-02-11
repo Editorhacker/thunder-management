@@ -42,7 +42,7 @@ const Login = () => {
             setLoading(true);
 
             /* 1️⃣ Resolve username → email */
-            const resolveRes = await axios.post('http://localhost:5000/api/auth/resolve-username', {
+            const resolveRes = await axios.post('https://thunder-management.vercel.app//api/auth/resolve-username', {
                 username
             });
 
@@ -66,7 +66,7 @@ const Login = () => {
             const token = await user.getIdToken();
 
             /* 4️⃣ Get role */
-            const meRes = await axios.get('http://localhost:5000/api/auth/me', {
+            const meRes = await axios.get('https://thunder-management.vercel.app//api/auth/me', {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }

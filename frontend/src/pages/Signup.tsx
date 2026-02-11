@@ -1,11 +1,11 @@
-import { useState} from 'react';
-import type {ChangeEvent, FormEvent } from 'react';
+import { useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaGamepad } from 'react-icons/fa';
 import {
     createUserWithEmailAndPassword,
     sendEmailVerification,
-    
+
 } from 'firebase/auth';
 import type { UserCredential } from 'firebase/auth';
 import { auth } from '../config/firebase';
@@ -62,7 +62,7 @@ const Signup = () => {
             return;
         }
 
-         let firebaseUser = null;
+        let firebaseUser = null;
 
         try {
             setLoading(true);
@@ -77,8 +77,8 @@ const Signup = () => {
             await sendEmailVerification(userCredential.user);
 
             /* 3️⃣ Save profile via backend */
-            await axios.post('http://localhost:5000/api/auth/signup', {
-               uid: userCredential.user.uid,
+            await axios.post('https://thunder-management.vercel.app//api/auth/signup', {
+                uid: userCredential.user.uid,
                 name,
                 email,
                 username,
@@ -96,14 +96,14 @@ const Signup = () => {
             console.error(err);
 
             /* 🔥 ROLLBACK Firebase user if backend failed */
-        if (firebaseUser) {
-            try {
-                await firebaseUser.delete();
-                console.warn('Rolled back Firebase Auth user');
-            } catch (deleteError) {
-                console.error('Failed to rollback Firebase user', deleteError);
+            if (firebaseUser) {
+                try {
+                    await firebaseUser.delete();
+                    console.warn('Rolled back Firebase Auth user');
+                } catch (deleteError) {
+                    console.error('Failed to rollback Firebase user', deleteError);
+                }
             }
-        }
 
             /* Firebase Errors */
             if (
@@ -233,7 +233,7 @@ const Signup = () => {
                     </p>
                 </div>
             </div>
-            
+
             <style>{`
         .auth-container {
           min-height: 100vh;

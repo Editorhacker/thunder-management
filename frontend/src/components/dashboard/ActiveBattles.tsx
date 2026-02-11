@@ -23,7 +23,7 @@ interface Battle {
 /* -------------------- Socket -------------------- */
 
 // create socket ONCE
-const socket = io('http://localhost:5000', {
+const socket = io('https://thunder-management.vercel.app/', {
     transports: ['websocket']
 });
 
@@ -36,7 +36,7 @@ const ActiveBattles = () => {
 
     const fetchBattles = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/battles/active');
+            const res = await axios.get('https://thunder-management.vercel.app//api/battles/active');
             setBattles(res.data);
         } catch (error) {
             console.error('❌ Failed to fetch battles:', error);
@@ -50,7 +50,7 @@ const ActiveBattles = () => {
         fetchBattles();
 
         // 2️⃣ Score updates
-       
+
 
         // 3️⃣ Battle finished
         socket.on('battle:finished', ({ battleId }) => {
@@ -92,7 +92,7 @@ const ActiveBattles = () => {
             );
 
             await axios.post(
-                `http://localhost:5000/api/battles/score/${id}`,
+                `https://thunder-management.vercel.app//api/battles/score/${id}`,
                 { player }
             );
         } catch (error) {
@@ -106,7 +106,7 @@ const ActiveBattles = () => {
 
         try {
             await axios.post(
-                `http://localhost:5000/api/battles/finish/${id}`
+                `https://thunder-management.vercel.app//api/battles/finish/${id}`
             );
             // removal handled by socket event
         } catch (error) {

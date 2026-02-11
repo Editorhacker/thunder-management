@@ -27,7 +27,7 @@ const Analytics: React.FC = () => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await axios.get('http://localhost:5000/api/analytics/last-24-hours');
+                const res = await axios.get('https://thunder-management.vercel.app//api/analytics/last-24-hours');
                 setStats(res.data);
             } catch (err) {
                 console.error('Analytics fetch error', err);

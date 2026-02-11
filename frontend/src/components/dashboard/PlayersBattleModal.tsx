@@ -39,7 +39,7 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
         }
 
         try {
-            await axios.post('http://localhost:5000/api/battles/start', {
+            await axios.post('https://thunder-management.vercel.app//api/battles/start', {
                 crownHolder,
                 challenger
             });

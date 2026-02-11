@@ -50,7 +50,7 @@ const OwnerDashboard: React.FC = () => {
                 setLoading(true);
 
                 const range = timeFilter.toLowerCase().replace(' ', '');
-                const res = await fetch(`http://localhost:5000/api/owner/ownerstat?range=${range}`);
+                const res = await fetch(`https://thunder-management.vercel.app//api/owner/ownerstat?range=${range}`);
                 const data = await res.json();
 
                 setKpiStats(data.kpiStats || []);
@@ -69,7 +69,7 @@ const OwnerDashboard: React.FC = () => {
             try {
                 const range = timeFilter.toLowerCase().replace(' ', '');
                 const res = await fetch(
-                    `http://localhost:5000/api/owner/revenueflow?range=${range}`
+                    `https://thunder-management.vercel.app//api/owner/revenueflow?range=${range}`
                 );
                 const data = await res.json();
 

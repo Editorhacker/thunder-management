@@ -41,7 +41,7 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
 
         try {
             const res = await axios.get(
-                `http://localhost:5000/api/battles/thunder-player`,
+                `https://thunder-management.vercel.app//api/battles/thunder-player`,
                 {
                     params: { name, phone }
                 }
