@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaTimes, FaDesktop, FaGamepad, FaClock, FaUserPlus, FaPizzaSlice, FaMinus, FaPlus, FaChevronRight, FaTrash } from "react-icons/fa";
@@ -97,7 +97,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     // Feature 3: Snacks (Dynamic)
     const [newSnackCost, setNewSnackCost] = useState(0);
-    const [newSnackItems, setNewSnackItems] = useState<{ name: string; price: number; qty: number }[]>([]);
+    const [newSnackItems, setNewSnackItems] = useState<{ name: string; quantity: number }[]>([]);
 
     // ------------------- Calculations -------------------
 
@@ -353,7 +353,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                 <SnackSelector
                                     onChange={(_, cost, items) => {
                                         setNewSnackCost(cost);
-                                        setNewSnackItems(items);
+                                        setNewSnackItems(items.map(i => ({ name: i.name, quantity: i.qty })));
                                     }}
                                 />
                             </motion.div>

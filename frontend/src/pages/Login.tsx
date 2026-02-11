@@ -1,4 +1,5 @@
-import { useState, ChangeEvent, FormEvent } from 'react';
+import { useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaGamepad } from 'react-icons/fa';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -153,7 +154,7 @@ const Login = () => {
                     </p>
                 </div>
             </div>
-                        <style>{`
+            <style>{`
         .auth-container {
           min-height: 100vh;
           display: flex;

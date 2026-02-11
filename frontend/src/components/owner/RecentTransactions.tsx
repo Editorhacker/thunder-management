@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { GlassCard, GradientTitle } from './ui/ModernComponents';
-import { FaGamepad, FaClock, FaCheckCircle, FaPlayCircle } from 'react-icons/fa';
+import { FaClock, FaCheckCircle, FaPlayCircle } from 'react-icons/fa';
 
 interface Transaction {
   id: string;

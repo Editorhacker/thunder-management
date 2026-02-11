@@ -108,6 +108,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
 
     const [snackCost, setSnackCost] = useState<number>(0);
+    const [snackItems, setSnackItems] = useState<{ name: string; quantity: number }[]>([]);
 
     /* ---------- SAFE DURATION ---------- */
     const durationStr = form.duration || "00:00";
@@ -141,6 +142,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
             await axios.post('http://localhost:5000/api/sessions/start', {
                 ...form,
+                snackDetails: snackItems,
                 duration: durationInHours,
                 price: totalPrice
             });
@@ -156,6 +158,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 snacks: '',
                 devices: { ps: [], pc: [], vr: [], wheel: [], metabat: [] }
             });
+            setSnackItems([]); // Reset snacks
 
             onClose(); // Close modal on success
 
@@ -301,9 +304,11 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                 <div className="field-group" style={{ gridColumn: '1 / -1' }}>
                                     <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Snacks / Combo</label>
                                     <SnackSelector
-                                        onChange={(val, cost) => {
+                                        onChange={(val, cost, items) => {
                                             updateField('snacks', val);
                                             setSnackCost(cost);
+                                            // Map to backend expected format
+                                            setSnackItems(items.map(i => ({ name: i.name, quantity: i.qty })));
                                         }}
                                     />
                                 </div>

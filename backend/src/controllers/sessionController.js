@@ -1,6 +1,7 @@
 const { db } = require('../config/firebase');
 const deviceLimits = require("../config/deviceLimit");
 const { calculateSessionPrice } = require('../utils/pricing');
+const snackService = require('../services/snackService'); // Import SnackService
 
 // Helper to transform device counts object to array of objects for frontend
 const transformDevicesToArray = (deviceData) => {
@@ -68,8 +69,16 @@ const createSession = async (req, res) => {
     try {
         const {
             customerName, contactNumber, duration,
-            peopleCount, snacks, devices, price
+            peopleCount, snacks, devices, price, snackDetails
         } = req.body;
+
+        // Deduct snacks if provided
+        if (snackDetails && Array.isArray(snackDetails) && snackDetails.length > 0) {
+            await snackService.deductStock(snackDetails);
+        } else if (snacks && Array.isArray(snacks)) {
+            // Handle case where snacks is sent as array directly (consistency)
+            await snackService.deductStock(snacks);
+        }
 
         // 1. Get currently occupied IDs
         const snapshot = await db
@@ -426,7 +435,12 @@ const getDeviceAvailabilityForTime = async (req, res) => {
 const updateSession = async (req, res) => {
     try {
         const { id } = req.params;
-        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow } = req.body;
+        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks } = req.body;
+
+        // Deduct snacks for update
+        if (snacks && Array.isArray(snacks) && snacks.length > 0) {
+            await snackService.deductStock(snacks);
+        }
 
 
         const ref = db.collection('sessions').doc(id);

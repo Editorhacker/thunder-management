@@ -13,8 +13,9 @@ import {
 } from '../components/owner/ui/ModernComponents';
 import SubscriptionCard from '../components/owner/SubscriptionCard';
 import RecentTransactions from '../components/owner/RecentTransactions';
-import SnackSalesComparison from '../components/owner/SnackSalesComparison';
+
 import OwnerPieCharts from '../components/owner/OwnerPieCharts';
+import SnackOverview from '../components/owner/SnackOverview'; // Import SnackOverview
 
 import './OwnerDashboard.css';
 
@@ -231,13 +232,13 @@ const OwnerDashboard: React.FC = () => {
 
                     </div>
                     <div className="transactions-area">
-                          <SubscriptionCard />
+                        <SubscriptionCard />
                     </div>
                 </section>
 
                 {/* 5. Snacks */}
-                <section className="bottom-section">
-                    <SnackSalesComparison />
+                <section className="bottom-section" style={{ marginTop: '1.5rem' }}>
+                    <SnackOverview />
                 </section>
 
             </div>

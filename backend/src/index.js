@@ -12,6 +12,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const snackRoutes = require('./routes/snackRoutes');
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
@@ -20,6 +22,7 @@ app.use('/api/battles', require('./routes/battleRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 app.use('/api/owner', require('./routes/ownerRoute'));
 app.use('/api/subscription', require('./routes/subscriptionRoute'));
+app.use('/api/snacks', snackRoutes);
 
 
 
