@@ -145,14 +145,14 @@ const Login = () => {
                     </button>
                 </form>
 
-                <div className="auth-footer">
+                {/* <div className="auth-footer">
                     <p>
                         Don't have an account?{' '}
                         <Link to="/signup" className="link-text">
                             Sign Up
                         </Link>
                     </p>
-                </div>
+                </div> */}
             </div>
             <style>{`
         .auth-container {
