@@ -1,6 +1,8 @@
 const http = require("http");
 const app = require("./src/index");
 const { startBookingScheduler } = require("./src/services/bookingScheduler");
+const { Server } = require("socket.io");
+
 
 const server = http.createServer(app);
 const io = new Server(server, {
