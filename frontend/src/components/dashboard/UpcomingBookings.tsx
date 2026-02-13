@@ -10,12 +10,17 @@ import './UpcomingBookings.css';
 
 type DeviceType = 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat';
 
+interface BookingDevice {
+  type: DeviceType;
+  id: number | null;
+}
+
 interface Booking {
   id: string;
   name: string;
   time: string;
   endTime?: string;
-  devices: DeviceType[];
+  devices: BookingDevice[];
   peopleCount?: number;
   duration?: number;
 }
@@ -45,7 +50,7 @@ const UpcomingBookings = () => {
 
   const fetchBookings = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/sessions/upcoming');
+      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/upcoming');
       setBookings(res.data);
     } catch (error) {
       console.error('Failed to load upcoming bookings', error);
@@ -60,7 +65,7 @@ const UpcomingBookings = () => {
     }
 
     try {
-      await axios.delete(`http://localhost:5000/api/sessions/booking/${id}`);
+      await axios.delete(`https://thunder-management.onrender.com/api/sessions/booking/${id}`);
       fetchBookings(); // Refresh list
     } catch (error) {
       console.error('Error deleting booking:', error);
@@ -84,17 +89,7 @@ const UpcomingBookings = () => {
     }
   };
 
-  // Get device label
-  const getDeviceLabel = (device: DeviceType) => {
-    const labels = {
-      ps: 'PlayStation',
-      pc: 'PC Gaming',
-      vr: 'VR Station',
-      wheel: 'Racing Wheel',
-      metabat: 'Meta Bat'
-    };
-    return labels[device] || device.toUpperCase();
-  };
+
 
   // Calculate time until booking
   const getTimeUntil = (bookingTime: string) => {
@@ -290,10 +285,12 @@ const UpcomingBookings = () => {
                 </div>
 
                 <div className="booking-devices-section">
-                  {Array.from(new Set(booking.devices)).map((device, i) => (
-                    <div key={i} className="device-chip">
-                      {getDeviceIcon(device)}
-                      <span>{getDeviceLabel(device)}</span>
+                  {booking.devices.map((dev, i) => (
+                    <div key={i} className={`device-tag ${dev.type}`}>
+                      {getDeviceIcon(dev.type)}
+                      <span style={{ textTransform: 'uppercase' }}>
+                        {dev.type} {dev.id ? `#${dev.id}` : ''}
+                      </span>
                     </div>
                   ))}
                 </div>

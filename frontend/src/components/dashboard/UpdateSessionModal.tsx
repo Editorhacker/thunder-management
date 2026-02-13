@@ -1,16 +1,34 @@
-import React, { useState } from "react";
+
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaTimes, FaDesktop, FaGamepad, FaClock, FaUserPlus, FaPizzaSlice, FaMinus, FaPlus, FaChevronRight, FaTrash } from "react-icons/fa";
 import "./UpdateSessionModal.css";
+import SnackSelector from './SnackSelector';
+import DeviceDropdown from './DeviceDropdown';
+import { calculateSessionPrice } from '../../utils/pricing';
 
 // ------------------- Types -------------------
 interface DeviceMap {
-    ps: number;
-    pc: number;
-    vr: number;
-    wheel: number;
-    metabat: number;
+    ps: number[];
+    pc: number[];
+    vr: number[];
+    wheel: number[];
+    metabat: number[];
+}
+
+
+
+
+interface Availability {
+    limits: Record<string, number>;
+    occupied: {
+        ps: number[];
+        pc: number[];
+        vr: number[];
+        wheel: number[];
+        metabat: number[];
+    };
 }
 
 interface ActiveSession {
@@ -23,7 +41,7 @@ interface ActiveSession {
     paidAmount?: number;
     paidPeople?: number;
     remainingAmount?: number;
-    devices: string[];
+    devices: { type: string; id: number | null }[]; // Updated structure
 }
 
 interface Props {
@@ -31,24 +49,8 @@ interface Props {
     onClose: () => void;
 }
 
-interface SnackItem {
-    id: string;
-    name: string;
-    price: number;
-    icon: string;
-}
-
 // ------------------- Constants -------------------
-const PRICE_PER_HOUR_PER_PERSON = 50;
-
-const AVAILABLE_SNACKS: SnackItem[] = [
-    { id: '1', name: 'Cola (300ml)', price: 40, icon: '🥤' },
-    { id: '2', name: 'Spicy Nachos', price: 150, icon: '🌮' },
-    { id: '3', name: 'Chicken Burger', price: 120, icon: '🍔' },
-    { id: '4', name: 'French Fries', price: 80, icon: '🍟' },
-    { id: '5', name: 'Cold Coffee', price: 60, icon: '☕' },
-    { id: '6', name: 'Energy Drink', price: 100, icon: '⚡' },
-];
+// const PRICE_PER_HOUR_PER_PERSON = 50; // Removed unused
 
 const UpdateSessionModal = ({ session, onClose }: Props) => {
     // ------------------- State -------------------
@@ -59,65 +61,106 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     // Feature 1: Extend Time
     const [extraMinutes, setExtraMinutes] = useState(0);
 
-    // Feature 2: Add Member
+    // Feature 2: Add Member & Availability
+    const [availability, setAvailability] = useState<Availability>({
+        limits: { ps: 0, pc: 0, vr: 0, wheel: 0, metabat: 0 },
+        occupied: { ps: [], pc: [], vr: [], wheel: [], metabat: [] }
+    });
+
+    useEffect(() => {
+        axios.get('https://thunder-management.onrender.com/api/sessions/availability')
+            .then(res => setAvailability(res.data))
+            .catch(err => console.error("Failed to fetch availability", err));
+    }, []);
+
+    // Auto-close safety for modal if session expires while open
+    useEffect(() => {
+        const checkExpiry = () => {
+            const start = new Date(session.startTime).getTime();
+            const durationMs = session.duration * 60 * 60 * 1000;
+            const end = start + durationMs;
+            const now = Date.now();
+
+            if (now > end + 30000) { // 30s grace
+                onClose();
+            }
+        };
+        const timer = setInterval(checkExpiry, 1000);
+        return () => clearInterval(timer);
+    }, [session, onClose]);
+
     const [newMember, setNewMember] = useState({
         name: "",
         peopleCount: 0,
-        devices: { ps: 0, pc: 0, vr: 0, wheel: 0, metabat: 0 } as DeviceMap
+        devices: { ps: [], pc: [], vr: [], wheel: [], metabat: [] } as DeviceMap
     });
 
-    // Feature 3: Snacks
-    const [cart, setCart] = useState<{ [key: string]: number }>({});
+    // Feature 3: Snacks (Dynamic)
+    const [newSnackCost, setNewSnackCost] = useState(0);
+    const [newSnackItems, setNewSnackItems] = useState<{ name: string; quantity: number }[]>([]);
 
     // ------------------- Calculations -------------------
-    // const people = session.peopleCount || 1;
-    const totalPeople = session.peopleCount || 1;
 
-    const extraHours = extraMinutes / 60;
+    // Convert session.devices array ({ type, id }) to map for logic (Record<string, number[]>)
+    const currentDeviceMap = session.devices.reduce((acc, dev) => {
+        if (!acc[dev.type]) acc[dev.type] = [];
+        if (dev.id) acc[dev.type].push(dev.id);
+        // If id is null (legacy), we can't really represent it in number[], but pricing mostly cares about count or array length
+        // Note: frontend calculateSessionPrice normally expects number[] to determine count.
+        // If legacy data has no ID, we might need a workaround if pricing depends on specific IDs?
+        // Actually, pricing just uses .length usually. So we can push dummy values if needed, but let's assume valid IDs for now.
+        return acc;
+    }, {} as Record<string, number[]>);
 
-    const extendPrice = extraHours * totalPeople * PRICE_PER_HOUR_PER_PERSON;
+    // MERGED map (current + new)
+    const mergedDevices: Record<string, number[]> = { ...currentDeviceMap };
 
-    const memberCount = newMember.peopleCount || 0;
-    const newMemberPrice = extraHours * memberCount * PRICE_PER_HOUR_PER_PERSON;
+    // Ensure all keys exist
+    ['ps', 'pc', 'vr', 'wheel', 'metabat'].forEach(k => {
+        if (!mergedDevices[k]) mergedDevices[k] = [];
+    });
 
-    const snackPrice = Object.entries(cart).reduce((total, [id, qty]) => {
-        const item = AVAILABLE_SNACKS.find(s => s.id === id);
-        return total + (item ? item.price * qty : 0);
-    }, 0);
+    Object.keys(newMember.devices).forEach(k => {
+        const key = k as keyof DeviceMap;
+        const newDevs = newMember.devices[key];
+        // Combine arrays
+        mergedDevices[key] = [...(mergedDevices[key] || []), ...newDevs];
+    });
 
-    const totalToPay = session.price + extendPrice + newMemberPrice + snackPrice;
-    const alreadyPaid = session.paidPeople || 0;
-    const totalPrice = session.price;
 
-    const remaining = session.remainingAmount ?? totalPrice;
+    // 1. Calculate Old Price (Standard or Stored)
+    // Actually we trust session.price.
 
-    const perPerson = totalPrice / totalPeople;
+    // 2. Calculate New Total Scenario
+    const totalPeople = (session.peopleCount || 1) + (newMember.peopleCount || 0);
+    const newDuration = (session.duration || 0) + (extraMinutes / 60);
 
-    const payNowAmount = payingNow * perPerson;
+    // We calculate "Expected Total Price" for the *Target State*
+    const expectedTotalPrice = calculateSessionPrice(
+        newDuration,
+        totalPeople,
+        mergedDevices, // Now passing correct structure
+        new Date()
+    );
 
-    const newPaidPeople = alreadyPaid + payingNow;
-    const newRemainingPeople = totalPeople - newPaidPeople;
+    // The delta is what we charge
+    // `charges = ExpectedTotal - session.price`.
 
-    const newRemainingAmount = remaining - (newPaidPeople * perPerson);
+    const chargesAsString = Math.max(0, expectedTotalPrice - session.price) + newSnackCost;
+
+    const finalBill = (session.remainingAmount ?? session.price) + chargesAsString;
+    const totalToPay = expectedTotalPrice + newSnackCost;
+
+    const newRemainingPeople = totalPeople - ((session.paidPeople || 0) + payingNow);
+    const payNowAmount = payingNow * (expectedTotalPrice / totalPeople); // Approx per person share
 
 
     // ------------------- Handlers -------------------
-    const updateSnack = (id: string, delta: number) => {
-        setCart(prev => {
-            const current = prev[id] || 0;
-            const next = Math.max(0, current + delta);
-            if (next === 0) {
-                const { [id]: _, ...rest } = prev; // Remove key
-                return rest;
-            }
-            return { ...prev, [id]: next };
-        });
-    };
 
-    const updateDevice = (key: keyof DeviceMap, delta: number) => {
+    const updateDevice = (key: keyof DeviceMap, value: number[]) => {
         setNewMember(prev => ({
             ...prev,
-            devices: { ...prev.devices, [key]: Math.max(0, prev.devices[key] + delta) }
+            devices: { ...prev.devices, [key]: value }
         }));
     };
 
@@ -125,7 +168,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         if (!window.confirm("Are you sure you want to delete this session? This cannot be undone.")) return;
 
         try {
-            await axios.delete(`http://localhost:5000/api/sessions/delete/${session.id}`);
+            await axios.delete(`https://thunder-management.onrender.com/api/sessions/delete/${session.id}`);
             alert("Session deleted successfully");
             onClose();
         } catch (err) {
@@ -136,27 +179,25 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     const handleConfirm = async () => {
         try {
-            // Build simple summary for alert/log
-            const snackDetails = Object.entries(cart).map(([id, qty]) => {
-                const s = AVAILABLE_SNACKS.find(x => x.id === id);
-                return s ? { name: s.name, qty, price: s.price * qty } : null;
-            }).filter(Boolean);
+            // Re-calculate payload values
+            const extraHours = extraMinutes / 60;
+            const charges = expectedTotalPrice - session.price; // Pure delta
+            const memberCount = newMember.peopleCount;
 
             const payload = {
                 extraTime: extraHours,
-                extraPrice: extendPrice + newMemberPrice + snackPrice,
+                extraPrice: charges + newSnackCost, // We send the Delta + Snacks
                 newMember: memberCount > 0 ? newMember : null,
-                snacks: snackDetails,
+                snacks: newSnackItems,
                 paidNow: payNowAmount,
                 payingPeopleNow: payingNow
             };
 
             await axios.post(
-                `http://localhost:5000/api/sessions/update/${session.id}`,
+                `https://thunder-management.onrender.com/api/sessions/update/${session.id}`,
                 payload
             );
 
-            // "Addictive" feedback could be implemented as a toast here.
             onClose();
         } catch (err) {
             console.error(err);
@@ -225,7 +266,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                     <button className="counter-btn" onClick={() => setExtraMinutes(prev => Math.max(15, prev - 15))}>
                                         <FaMinus size={12} />
                                     </button>
-                                    <div style={{ textAlign: 'center' }}>
+                                    <div className="counter-display">
                                         <div className="counter-value">{extraMinutes}</div>
                                         <span className="counter-label">minutes added</span>
                                     </div>
@@ -251,7 +292,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                             >
                                 <input
                                     placeholder="New Player Name"
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors mb-4"
                                     value={newMember.name}
                                     onChange={e => setNewMember({ ...newMember, name: e.target.value })}
                                 />
@@ -260,7 +301,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                     <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: Math.max(0, p.peopleCount - 1) }))}>
                                         <FaMinus size={12} />
                                     </button>
-                                    <div style={{ textAlign: 'center' }}>
+                                    <div className="counter-display">
                                         <div className="counter-value">{newMember.peopleCount}</div>
                                         <span className="counter-label">new players</span>
                                     </div>
@@ -270,26 +311,32 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                 </div>
 
                                 <h4 className="text-xs font-bold text-gray-500 uppercase mt-4 mb-2">Assign Devices</h4>
-                                {/* Simple Device List */}
-                                {(['ps', 'pc', 'vr', 'wheel', 'metabat'] as const).map(device => (
-                                    <div key={device} className={`grid-item ${newMember.devices[device] > 0 ? 'selected' : ''}`}>
-                                        <div className="item-icon">
-                                            {device === 'ps' ? <FaGamepad /> : <FaDesktop />}
-                                        </div>
-                                        <div className="item-info">
-                                            <span className="item-name uppercase">{device}</span>
-                                        </div>
-                                        <div className="item-controls">
-                                            {newMember.devices[device] > 0 && (
-                                                <button className="mini-control" onClick={() => updateDevice(device, -1)}><FaMinus size={8} /></button>
-                                            )}
-                                            {newMember.devices[device] > 0 && (
-                                                <span className="font-bold w-4 text-center">{newMember.devices[device]}</span>
-                                            )}
-                                            <button className="mini-control" onClick={() => updateDevice(device, 1)}><FaPlus size={8} /></button>
-                                        </div>
-                                    </div>
-                                ))}
+                                <div className="devices-list" style={{ display: 'grid', gap: '0.75rem' }}>
+                                    <DeviceDropdown
+                                        icon={<FaGamepad />}
+                                        label="PS5"
+                                        limit={availability.limits.ps}
+                                        value={newMember.devices.ps}
+                                        occupied={availability.occupied.ps || []}
+                                        onChange={v => updateDevice('ps', v)}
+                                    />
+                                    <DeviceDropdown
+                                        icon={<FaDesktop />}
+                                        label="PC"
+                                        limit={availability.limits.pc}
+                                        value={newMember.devices.pc}
+                                        occupied={availability.occupied.pc || []}
+                                        onChange={v => updateDevice('pc', v)}
+                                    />
+                                    <DeviceDropdown
+                                        icon={<FaUserPlus />} // VR Icon placeholder
+                                        label="VR"
+                                        limit={availability.limits.vr}
+                                        value={newMember.devices.vr}
+                                        occupied={availability.occupied.vr || []}
+                                        onChange={v => updateDevice('vr', v)}
+                                    />
+                                </div>
                             </motion.div>
                         )}
 
@@ -301,69 +348,63 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                 exit={{ opacity: 0, x: 10 }}
                                 transition={{ duration: 0.2 }}
                                 className="item-grid"
+                                style={{ display: 'block' }} // Allow block layout for selector
                             >
-                                {AVAILABLE_SNACKS.map(snack => {
-                                    const qty = cart[snack.id] || 0;
-                                    return (
-                                        <div key={snack.id} className={`grid-item ${qty > 0 ? 'selected' : ''}`}>
-                                            <div className="text-2xl mr-3">{snack.icon}</div>
-                                            <div className="item-info">
-                                                <span className="item-name">{snack.name}</span>
-                                                <span className="item-price-tag">₹{snack.price}</span>
-                                            </div>
-                                            <div className="item-controls">
-                                                {qty > 0 && (
-                                                    <button className="mini-control" onClick={() => updateSnack(snack.id, -1)}><FaMinus size={8} /></button>
-                                                )}
-                                                {qty > 0 && (
-                                                    <span className="font-bold w-4 text-center">{qty}</span>
-                                                )}
-                                                <button className="mini-control" onClick={() => updateSnack(snack.id, 1)}><FaPlus size={8} /></button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                <SnackSelector
+                                    onChange={(_, cost, items) => {
+                                        setNewSnackCost(cost);
+                                        setNewSnackItems(items.map(i => ({ name: i.name, quantity: i.qty })));
+                                    }}
+                                />
                             </motion.div>
                         )}
                         {activeTab === 'split' && (
-                            <motion.div className="item-grid">
-                                <div style={{ width: "100%", textAlign: "center" }}>
-                                    <h3>Total Bill</h3>
-                                    <div style={{ fontSize: 26, fontWeight: "bold" }}>
-                                        ₹{totalToPay.toFixed(0)}
+                            <motion.div>
+                                <div className="invoice-card">
+                                    <div className="invoice-header">
+                                        <div className="invoice-title">Total Session Cost</div>
+                                        <div className="invoice-total-display">
+                                            ₹{(session.price + chargesAsString).toFixed(0)}
+                                        </div>
+                                        <div className="invoice-subtitle">
+                                            Old Price: ₹{session.price} + New Charges: ₹{chargesAsString}
+                                        </div>
                                     </div>
 
-                                    <h4 style={{ marginTop: 12 }}>
-                                        Remaining Amount: ₹{remaining.toFixed(0)}
-                                    </h4>
+                                    <div className="invoice-row">
+                                        <span className="invoice-label">Current Pending</span>
+                                        <span className="invoice-val">₹{finalBill.toFixed(0)}</span>
+                                    </div>
 
-                                    <h4 style={{ marginTop: 12 }}>
-                                        People Remaining: {newRemainingPeople}
-                                    </h4>
+                                    <div className="invoice-row">
+                                        <span className="invoice-label">People Remaining</span>
+                                        <span className="invoice-val">{newRemainingPeople}</span>
+                                    </div>
 
-                                    <div style={{ marginTop: 12 }}>
-                                        <label>People Paying Now</label>
+                                    <div className="invoice-row" style={{ marginTop: '0.5rem' }}>
+                                        <span className="invoice-label">People Paying Now</span>
                                         <input
                                             type="number"
                                             min={0}
                                             max={newRemainingPeople}
                                             value={payingNow}
                                             onChange={e => setPayingNow(Number(e.target.value))}
-                                            className="input-field"
+                                            className="invoice-field"
                                         />
                                     </div>
 
-                                    <div style={{ marginTop: 12 }}>
-                                        Pay Now: <b>₹{payNowAmount.toFixed(0)}</b>
+                                    <div className="invoice-row">
+                                        <span className="invoice-label">Pay Now Amount</span>
+                                        <span className="invoice-val" style={{ color: 'var(--accent-primary)' }}>
+                                            ₹{payNowAmount.toFixed(0)}
+                                        </span>
                                     </div>
 
-                                    <div style={{ marginTop: 8 }}>
-                                        Remaining People: <b>{newRemainingPeople}</b>
-
-                                    </div>
-
-                                    <div style={{ marginTop: 8 }}>
-                                        New Remaining Amount: <b>₹{newRemainingAmount.toFixed(0)}</b>
+                                    <div className="invoice-row" style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                                        <span className="invoice-label">New Pending Balance</span>
+                                        <span className="invoice-val">
+                                            ₹{(finalBill - payNowAmount).toFixed(0)}
+                                        </span>
                                     </div>
                                 </div>
                             </motion.div>
@@ -383,14 +424,14 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                     </button>
 
                     <div className="total-section" style={{ marginLeft: 'auto', marginRight: '1rem', textAlign: 'right' }}>
-                        <span className="total-label-sm">Total to Pay</span>
+                        <span className="total-label-sm">Balance After Pay</span>
                         <motion.span
                             key={totalToPay}
                             initial={{ scale: 1.2, color: '#fff' }}
                             animate={{ scale: 1, color: '#f4f4f5' }}
                             className="total-value-lg"
                         >
-                            ₹{remaining.toFixed(0)}
+                            ₹{(finalBill - payNowAmount).toFixed(0)}
                         </motion.span>
                     </div>
                     <button className="pay-btn" onClick={handleConfirm}>

@@ -273,24 +273,44 @@
     gap: 0.5rem;
 }
 
-.device-chip {
+/* Device Tag Styles (Matched with ActiveSessions) */
+.device-tag {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #d4d4d8;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 6px 12px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 0.75rem;
-    color: #a1a1aa;
-    font-weight: 500;
+    gap: 4px;
     transition: all 0.2s;
 }
 
-.device-chip:hover {
+.device-tag:hover {
     background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
     color: #fff;
+}
+
+.device-tag.ps {
+    border-bottom: 2px solid #2f6fd3;
+}
+
+.device-tag.pc {
+    border-bottom: 2px solid #a855f7;
+}
+
+.device-tag.vr {
+    border-bottom: 2px solid #ec4899;
+}
+
+.device-tag.wheel {
+    border-bottom: 2px solid #f59e0b;
+}
+
+.device-tag.metabat {
+    border-bottom: 2px solid #10b981;
 }
 
 .device-chip-icon {

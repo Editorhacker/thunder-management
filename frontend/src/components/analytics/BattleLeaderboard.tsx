@@ -37,7 +37,7 @@ const BattleLeaderboard = () => {
 
     const fetchCompletedBattles = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/battles/completed');
+            const res = await axios.get('https://thunder-management.onrender.com/api/battles/completed');
             const completedBattles = res.data;
 
             // Calculate leaderboard

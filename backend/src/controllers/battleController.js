@@ -1,4 +1,6 @@
 const { db } = require('../config/firebase');
+const admin = require('firebase-admin');
+
 
 // Start a new Battle
 exports.startBattle = async (req, res) => {
@@ -23,6 +25,13 @@ exports.startBattle = async (req, res) => {
         };
 
         const docRef = await db.collection('battles').add(battleData);
+         const response = {
+            id: docRef.id,
+            ...battleData
+        };
+
+        // 🔔 Socket event
+        global.io.emit('battle:started', response);
 
         console.log('✅ Battle created:', docRef.id);
         res.status(201).json({ id: docRef.id, ...battleData });
@@ -89,6 +98,11 @@ exports.updateScore = async (req, res) => {
             [`${player}.score`]: currentScore + 1
         });
 
+      global.io.emit('battle:scoreUpdated', {
+            battleId: id,
+            player
+        });    
+        
         res.status(200).json({ message: 'Score updated' });
 
     } catch (error) {
@@ -98,21 +112,83 @@ exports.updateScore = async (req, res) => {
 };
 
 // Finish Battle
+
 exports.finishBattle = async (req, res) => {
     try {
         const { id } = req.params;
 
-        await db.collection('battles').doc(id).update({
+        const battleRef = db.collection('battles').doc(id);
+        const snap = await battleRef.get();
+
+        if (!snap.exists) {
+            return res.status(404).json({ message: 'Battle not found' });
+        }
+
+        const battle = snap.data();
+
+        if (battle.status !== 'active') {
+            return res.status(400).json({ message: 'Battle already finished' });
+        }
+
+        const crownScore = battle.crownHolder.score;
+        const chalScore = battle.challenger.score;
+
+        let winnerKey = null; // 'crownHolder' | 'challenger'
+
+        if (crownScore > chalScore) {
+            winnerKey = 'crownHolder';
+        } else if (chalScore > crownScore) {
+            winnerKey = 'challenger';
+        }
+
+        const batch = db.batch();
+
+        // 1️⃣ Finish the battle
+        batch.update(battleRef, {
             status: 'completed',
-            endTime: new Date().toISOString()
+            endTime: admin.firestore.FieldValue.serverTimestamp(),
+            winner: winnerKey ? battle[winnerKey].name : 'tie'
         });
 
-        res.status(200).json({ message: 'Battle finished' });
+        // 2️⃣ Store reward in battelwinner collection
+        if (winnerKey) {
+            const winner = battle[winnerKey];
+
+            const winnerRef = db
+                .collection('battelwinner')
+                .doc(winner.phone); // phone as document ID
+
+            batch.set(
+                winnerRef,
+                {
+                    name: winner.name,
+                    phone: winner.phone,
+                    thunderCoins: admin.firestore.FieldValue.increment(15),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                },
+                { merge: true } // 👈 critical (increment works safely)
+            );
+        }
+
+        await batch.commit();
+
+        global.io.emit('battle:finished', { battleId: id });
+
+        res.status(200).json({
+            message: 'Battle finished',
+            winner: winnerKey ? battle[winnerKey].name : 'tie',
+            coinsAwarded: winnerKey ? 15 : 0
+        });
+
     } catch (error) {
-        console.error('Error finishing battle:', error);
-        res.status(500).json({ message: 'Internal Server Error', error: error.message });
+        console.error('❌ Error finishing battle:', error);
+        res.status(500).json({
+            message: 'Internal Server Error',
+            error: error.message
+        });
     }
 };
+
 
 // Get Completed Battles (for leaderboard)
 exports.getCompletedBattles = async (req, res) => {
@@ -154,3 +230,53 @@ exports.getCompletedBattles = async (req, res) => {
         res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
 };
+
+
+exports.getThunderLeaderboard = async (req, res) => {
+    try {
+        const snapshot = await db
+            .collection('battelwinner')
+            .orderBy('thunderCoins', 'desc')
+            .limit(10)
+            .get();
+
+        const data = snapshot.docs.map(doc => doc.data());
+
+        res.status(200).json(data);
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to fetch leaderboard' });
+    }
+};
+
+exports.getThunderPlayer = async (req, res) => {
+    try {
+        const { name, phone } = req.query;
+
+        if (!name || !phone) {
+            return res.status(400).json({
+                message: 'Name and phone are required'
+            });
+        }
+
+        const doc = await db
+            .collection('battelwinner')
+            .doc(phone)
+            .get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ message: 'Player not found' });
+        }
+
+        const data = doc.data();
+
+        // 🔐 Exact match validation
+        if (data.name.toLowerCase() !== name.toLowerCase()) {
+            return res.status(404).json({ message: 'Player not found' });
+        }
+
+        res.status(200).json(data);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+

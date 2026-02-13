@@ -14,17 +14,18 @@ import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import axios from 'axios';
 import './SessionEntry.css';
 import './UpdateSessionModal.css'; // Reuse modal styles
+import { calculateSessionPrice, isFunNightTime, isNormalHourTime, isHappyHourTime } from '../../utils/pricing';
 
 /* ---------------- TYPES ---------------- */
 
 type DeviceKeys = 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat';
 
 interface DeviceCounts {
-    ps: number;
-    pc: number;
-    vr: number;
-    wheel: number;
-    metabat: number;
+    ps: number[];
+    pc: number[];
+    vr: number[];
+    wheel: number[];
+    metabat: number[];
 }
 
 interface FormState {
@@ -40,67 +41,34 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
 }
-
-/* ------------- DEVICE WIDGET (DROPDOWN) ------------ */
-// Copied from SessionEntry.tsx
-
-interface DeviceDropdownProps {
-    label: string;
-    limit: number;
-    value: number;
-    occupied: number[];
-    icon: React.ReactNode;
-    onChange: (val: number) => void;
+interface ThunderPlayer {
+    name: string;
+    phone: string;
+    thunderCoins: number;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
-const DeviceDropdown: React.FC<DeviceDropdownProps> = ({
-    label,
-    limit,
-    value,
-    occupied,
-    icon,
-    onChange
-}) => {
-    const isActive = value > 0;
-    const availableCount = limit - occupied.length;
-    const isEssentiallyFull = availableCount <= 0;
 
-    return (
-        <div className={`device-card-item ${isActive ? 'active' : ''} ${isEssentiallyFull ? 'sold-out' : ''}`}>
-            <div className="device-icon-wrapper">
-                {icon}
-            </div>
-            <div className="device-info">
-                <span className="device-name">{label}</span>
-                <span className="device-stock">
-                    {isEssentiallyFull ? 'Occupied' : `${availableCount} available`}
-                </span>
-            </div>
+import DeviceDropdown from './DeviceDropdown';
 
-            <div className="dropdown-control" onClick={(e) => e.stopPropagation()}>
-                <select
-                    className="mini-select"
-                    value={value}
-                    onChange={(e) => onChange(Number(e.target.value))}
-                >
-                    <option value={0}>None</option>
-                    {Array.from({ length: limit }, (_, i) => i + 1).map(num => {
-                        const isTaken = occupied.includes(num);
-                        return (
-                            <option key={num} value={num} disabled={isTaken}>
-                                {num} {isTaken ? '(Occupied)' : ''}
-                            </option>
-                        );
-                    })}
-                </select>
-            </div>
-        </div>
-    );
-};
+import SnackSelector from './SnackSelector';
 
 /* ---------------- MAIN ---------------- */
 
 const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
+    const [playerData, setPlayerData] = useState<ThunderPlayer | null>(null);
+
+    const [isFetchingPlayer, setIsFetchingPlayer] = useState(false);
+    const thunderCoins = playerData?.thunderCoins ?? 0;
+    const playerFound = !!playerData;
+    const [coinsApplied, setCoinsApplied] = useState(false);
+const [coinDiscount, setCoinDiscount] = useState(0);
+const coinsUsed = coinsApplied ? (coinDiscount / 20) * 50 : 0;
+
+
+
+
     const [form, setForm] = useState<FormState>({
         customerName: '',
         contactNumber: '',
@@ -108,17 +76,17 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         peopleCount: 1,
         snacks: '',
         devices: {
-            ps: 0,
-            pc: 0,
-            vr: 0,
-            wheel: 0,
-            metabat: 0
+            ps: [],
+            pc: [],
+            vr: [],
+            wheel: [],
+            metabat: []
         }
     });
 
     // State for availability
     const [availability, setAvailability] = useState<{
-        limits: DeviceCounts;
+        limits: Record<DeviceKeys, number>;
         occupied: { [key in DeviceKeys]: number[] };
     }>({
         limits: { ps: 0, pc: 0, vr: 0, wheel: 0, metabat: 0 },
@@ -132,7 +100,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         setForm(prev => ({ ...prev, [key]: value }));
     };
 
-    const updateDevice = (key: DeviceKeys, value: number) => {
+    const updateDevice = (key: DeviceKeys, value: number[]) => {
         setForm(prev => ({
             ...prev,
             devices: { ...prev.devices, [key]: value }
@@ -141,8 +109,8 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     const fetchAvailability = async () => {
         try {
-            const res = await axios.get<{ limits: DeviceCounts; occupied: { [key in DeviceKeys]: number[] } }>(
-                'http://localhost:5000/api/sessions/availability'
+            const res = await axios.get<{ limits: Record<DeviceKeys, number>; occupied: { [key in DeviceKeys]: number[] } }>(
+                'https://thunder-management.onrender.com/api/sessions/availability'
             );
             setAvailability(res.data);
         } catch (e) {
@@ -153,12 +121,59 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     useEffect(() => {
         if (isOpen) {
             fetchAvailability();
-            const interval = setInterval(fetchAvailability, 5000); // Poll every 5s
+            const interval = setInterval(fetchAvailability, 30000); // Poll every 30s
             return () => clearInterval(interval);
         }
     }, [isOpen]);
 
-    const PRICE_PER_HOUR_PER_PERSON = 50;
+    useEffect(() => {
+
+        // Require BOTH name + phone
+        if (!form.customerName || form.contactNumber.length !== 10) {
+            setPlayerData(null);
+            return;
+        }
+
+        let cancelled = false;
+
+        const timer = setTimeout(async () => {
+            try {
+                setIsFetchingPlayer(true);
+
+                const res = await axios.get(
+                    "https://thunder-management.onrender.com/api/battles/thunder-player",
+                    {
+                        params: {
+                            name: form.customerName.trim(),
+                            phone: form.contactNumber
+                        }
+                    }
+                );
+
+                if (!cancelled) {
+                    setPlayerData(res.data); // fetch ONCE
+                }
+setCoinsApplied(false);
+setCoinDiscount(0);
+
+            } catch (error) {
+                if (!cancelled) setPlayerData(null);
+            } finally {
+                if (!cancelled) setIsFetchingPlayer(false);
+            }
+        }, 2000); // wait 2 seconds after user stops typing
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+
+    }, [form.customerName, form.contactNumber]);
+
+
+
+    const [snackCost, setSnackCost] = useState<number>(0);
+    const [snackItems, setSnackItems] = useState<{ name: string; quantity: number }[]>([]);
 
     /* ---------- SAFE DURATION ---------- */
     const durationStr = form.duration || "00:00";
@@ -167,8 +182,23 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const m = Number(parts[1]) || 0;
     const durationInHours = h + m / 60;
 
-    const totalPrice =
-        durationInHours * form.peopleCount * PRICE_PER_HOUR_PER_PERSON;
+    // Pricing Logic
+    const deviceMap = (form.devices as unknown) as Record<string, number[]>;
+    const basePrice = calculateSessionPrice(
+        durationInHours,
+        form.peopleCount,
+        deviceMap
+    );
+    const totalPrice = basePrice + snackCost - coinDiscount;
+
+
+    const isHappyHour = isHappyHourTime();
+    const isFunNight = !isHappyHour && isFunNightTime();
+    const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
+
+const redeemableBlocks = Math.floor(thunderCoins / 50);
+const maxDiscount = redeemableBlocks * 20;
+
     /* ----------------------------------- */
 
     const startSession = async () => {
@@ -178,10 +208,12 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 return;
             }
 
-            await axios.post('http://localhost:5000/api/sessions/start', {
+            await axios.post('https://thunder-management.onrender.com/api/sessions/start', {
                 ...form,
+                snackDetails: snackItems,
                 duration: durationInHours,
-                price: totalPrice
+                price: totalPrice,
+                 thunderCoinsUsed: coinsUsed 
             });
 
             alert('Session started 🚀');
@@ -193,10 +225,17 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 duration: "00:00",
                 peopleCount: 1,
                 snacks: '',
-                devices: { ps: 0, pc: 0, vr: 0, wheel: 0, metabat: 0 }
+                devices: { ps: [], pc: [], vr: [], wheel: [], metabat: [] }
             });
+            setSnackItems([]); // Reset snacks
 
             onClose(); // Close modal on success
+setCoinDiscount(0);
+setCoinsApplied(false);
+setPlayerData(prev =>
+    prev ? { ...prev, thunderCoins: prev.thunderCoins - coinsUsed } : null
+);
+
 
         } catch (error: any) {
             console.error(error);
@@ -205,12 +244,29 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         }
     };
 
-    const snackOptions = [
-        { label: "None", value: "" },
-        { label: "Chips", value: "chips" },
-        { label: "Drinks", value: "drinks" },
-        { label: "Combo", value: "combo" }
-    ];
+
+const toggleThunderCoins = () => {
+
+    // Cancel if already applied
+    if (coinsApplied) {
+        setCoinsApplied(false);
+        setCoinDiscount(0);
+        return;
+    }
+
+    // Apply
+    if (thunderCoins < 50) {
+        alert("Minimum 50 Thunder Coins required ⚡");
+        return;
+    }
+
+    const redeemableBlocks = Math.floor(thunderCoins / 50);
+    const discount = redeemableBlocks * 20;
+
+    setCoinDiscount(discount);
+    setCoinsApplied(true);
+};
+
 
     /* -----------------------------
        JSX
@@ -230,6 +286,51 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         <div className="modal-header">
                             <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <FaRocket className="text-blue-500" /> Start New Session
+                                {isHappyHour && (
+                                    <span
+                                        style={{
+                                            color: '#16a34a',
+                                            fontSize: '0.7em',
+                                            border: '1px solid #16a34a',
+                                            padding: '2px 8px',
+                                            borderRadius: '12px',
+                                            marginLeft: 8
+                                        }}
+                                    >
+                                        ⏰ Happy Hour
+                                    </span>
+                                )}
+
+                                {isFunNight && (
+                                    <span
+                                        style={{
+                                            color: '#ec4899',
+                                            fontSize: '0.7em',
+                                            border: '1px solid #ec4899',
+                                            padding: '2px 8px',
+                                            borderRadius: '12px',
+                                            marginLeft: 8
+                                        }}
+                                    >
+                                        🌙 Fun Night
+                                    </span>
+                                )}
+
+                                {isNormalHour && (
+                                    <span
+                                        style={{
+                                            color: '#3b82f6',
+                                            fontSize: '0.7em',
+                                            border: '1px solid #3b82f6',
+                                            padding: '2px 8px',
+                                            borderRadius: '12px',
+                                            marginLeft: 8
+                                        }}
+                                    >
+                                        ☀️ Normal Hour
+                                    </span>
+                                )}
+
                             </h2>
                             <button className="close-icon-btn" onClick={onClose}>
                                 <FaTimes />
@@ -282,7 +383,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                     </div>
                                 </div>
 
-                                <div className="field-group">
+                                <div className="field-group " >
                                     <label className="field-label">People Count</label>
                                     <div style={{ position: 'relative' }}>
                                         <input
@@ -295,20 +396,90 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                         />
                                         <FaUser style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#52525b' }} />
                                     </div>
+                                    {/* Thunder Coins Display */}
+
+
+
+
                                 </div>
+                                <div className="field-group " >
+                                    <label className="field-label">Thunder Coins</label>
+                                    <div
+                                        className="field-input"
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            height: "42px",
+                                            background: "#0f172a",
+                                            border: "1px solid #334155",
+                                            color: "#facc15",
+                                            fontWeight: 600,
+                                            gap: 8
+                                        }}
+                                    >
+                                        {isFetchingPlayer && <span style={{ color: "#3b82f6" }}>Checking player...</span>}
+
+                                        {!isFetchingPlayer && playerFound && (
+                                            <>
+                                                ⚡ {thunderCoins} Coins
+                                            </>
+                                        )}
+
+                                        {!isFetchingPlayer && form.contactNumber.length === 10 && !playerFound && (
+                                            <span style={{ color: "#10b981" }}>New Player</span>
+                                        )}
+
+                                        {!form.contactNumber && <span style={{ color: "#64748b" }}>Enter phone number</span>}
+                                    </div>
+                                </div>
+                <div style={{ marginTop: 35, display: "flex", flexDirection: "column", gap: 6 }}>
+
+    {/* Apply / Cancel Button */}
+    <button
+        type="button"
+        onClick={toggleThunderCoins}
+        disabled={thunderCoins < 50 && !coinsApplied}
+        style={{
+            width: "100%",
+            height: "40px",
+            fontSize: 13,
+            borderRadius: 6,              // rectangular look
+            border: "1px solid #334155",
+            cursor: thunderCoins >= 50 || coinsApplied ? "pointer" : "not-allowed",
+            background: coinsApplied ? "#ef4444" : (thunderCoins >= 50 ? "#eab308" : "#1e293b"),
+            color: coinsApplied ? "#ffffff" : "#020617",
+            fontWeight: 600,
+            letterSpacing: 0.4,
+            transition: "0.2s"
+        }}
+    >
+        {coinsApplied ? "Cancel Thunder Coins" : "Apply Thunder Coins"}
+    </button>
+
+    {/* Discount message below */}
+    {coinsApplied && (
+        <div style={{
+            fontSize: 12,
+            color: "#22c55e",
+            fontWeight: 500
+        }}>
+            ⚡ ₹{coinDiscount} discount applied
+        </div>
+    )}
+
+</div>
+
 
                                 <div className="field-group" style={{ gridColumn: '1 / -1' }}>
-                                    <label className="field-label">Snacks / Combo</label>
-                                    <select
-                                        className="field-input"
-                                        value={form.snacks}
-                                        style={{ width: '100%', appearance: 'none', cursor: 'pointer' }}
-                                        onChange={e => updateField('snacks', e.target.value)}
-                                    >
-                                        {snackOptions.map(opt => (
-                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                        ))}
-                                    </select>
+                                    <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Snacks / Combo</label>
+                                    <SnackSelector
+                                        onChange={(val, cost, items) => {
+                                            updateField('snacks', val);
+                                            setSnackCost(cost);
+                                            // Map to backend expected format
+                                            setSnackItems(items.map(i => ({ name: i.name, quantity: i.qty })));
+                                        }}
+                                    />
                                 </div>
                             </div>
 
@@ -367,15 +538,43 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
                         {/* Footer - Moved outside scroller for stickiness */}
                         <div className="action-bar" style={{ borderRadius: '0 0 24px 24px' }}>
-                            <div className="price-display">
-                                <span className="price-label">Estimated Total</span>
-                                <span className="price-val">₹{Math.round(totalPrice)}</span>
-                            </div>
+                            {Object.values(form.devices).some(val => val.length > 0) && (
+        <div className="price-display" style={{ textAlign: "right" }}>
+
+            <span className="price-label">Estimated Total</span>
+
+            {/* Original price */}
+            {coinDiscount > 0 && (
+                <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                    Original: ₹{Math.round(basePrice + snackCost)}
+                </div>
+            )}
+
+            {/* Thunder coin discount */}
+            {coinDiscount > 0 && (
+                <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 600 }}>
+                    ⚡ Thunder Coins Discount: -₹{coinDiscount}
+                </div>
+            )}
+
+            {/* Final price */}
+            <span
+                className="price-val"
+                style={{
+                    color: coinDiscount > 0 ? "#22c55e" : undefined,
+                    fontSize: coinDiscount > 0 ? "1.4rem" : undefined
+                }}
+            >
+                ₹{Math.round(totalPrice)}
+            </span>
+
+        </div>
+    )}
 
                             <button
                                 className="start-session-btn"
                                 onClick={startSession}
-                                disabled={!form.customerName || (durationInHours <= 0)}
+                                disabled={!form.customerName || (durationInHours <= 0) || !Object.values(form.devices).some(val => val.length > 0)}
                                 style={{ height: '42px', boxShadow: 'none' }} // Adjust to fit modal footer
                             >
                                 Start Session

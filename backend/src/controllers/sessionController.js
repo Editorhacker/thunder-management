@@ -1,20 +1,32 @@
 const { db } = require('../config/firebase');
 const deviceLimits = require("../config/deviceLimit");
-const PRICE_PER_HOUR_PER_PERSON = 50;
+const { calculateSessionPrice } = require('../utils/pricing');
+const snackService = require('../services/snackService'); // Import SnackService
 
-
-// Helper to transform device counts object to array of strings for frontend
-const transformDevicesToArray = (deviceCounts) => {
+// Helper to transform device counts object to array of objects for frontend
+const transformDevicesToArray = (deviceData) => {
     const devices = [];
-    if (!deviceCounts) return devices;
+    if (!deviceData) return devices;
 
-    // devices: { ps: 2, pc: 1 } -> ['ps', 'ps', 'pc']
-    Object.entries(deviceCounts).forEach(([type, count]) => {
-        for (let i = 0; i < count; i++) {
-            devices.push(type);
+    Object.entries(deviceData).forEach(([type, value]) => {
+        // Handle array of IDs (New format: { ps: [1, 2] })
+        if (Array.isArray(value)) {
+            value.forEach(id => devices.push({ type, id }));
+        }
+        // Handle legacy number count (Old format: { ps: 2 })
+        // For legacy, we don't have IDs, so we might just pass type and maybe a placeholder ID or null
+        // However, converting legacy data to specific IDs is impossible without data loss, 
+        // but for display "PS5" without ID is fine.
+        else if (typeof value === 'number') {
+            for (let i = 0; i < value; i++) {
+                devices.push({ type, id: null }); // No specific ID
+            }
         }
     });
-    return devices;
+    return devices.sort((a, b) => {
+        if (a.type !== b.type) return a.type.localeCompare(b.type);
+        return (a.id || 0) - (b.id || 0);
+    });
 };
 
 const getDeviceAvailability = async (req, res) => {
@@ -30,9 +42,13 @@ const getDeviceAvailability = async (req, res) => {
             const devices = doc.data().devices || {};
             // devices: { ps: 5 } means PS Machine #5 is used.
             Object.keys(devices).forEach(k => {
-                const machineId = devices[k];
-                if (machineId > 0 && occupied[k]) {
-                    occupied[k].push(machineId);
+                const val = devices[k];
+                if (Array.isArray(val)) {
+                    val.forEach(id => {
+                        if (id > 0 && occupied[k]) occupied[k].push(id);
+                    });
+                } else if (typeof val === 'number' && val > 0 && occupied[k]) {
+                    occupied[k].push(val);
                 }
             });
         });
@@ -53,8 +69,16 @@ const createSession = async (req, res) => {
     try {
         const {
             customerName, contactNumber, duration,
-            peopleCount, snacks, devices
+            peopleCount, snacks, devices, price, snackDetails,  thunderCoinsUsed = 0 
         } = req.body;
+
+        // Deduct snacks if provided
+        if (snackDetails && Array.isArray(snackDetails) && snackDetails.length > 0) {
+            await snackService.deductStock(snackDetails);
+        } else if (snacks && Array.isArray(snacks)) {
+            // Handle case where snacks is sent as array directly (consistency)
+            await snackService.deductStock(snacks);
+        }
 
         // 1. Get currently occupied IDs
         const snapshot = await db
@@ -67,31 +91,52 @@ const createSession = async (req, res) => {
         snapshot.forEach(doc => {
             const d = doc.data().devices || {};
             Object.keys(d).forEach(k => {
-                const id = d[k];
-                if (id > 0 && occupied[k]) occupied[k].push(id);
+                const val = d[k];
+                if (Array.isArray(val)) {
+                    val.forEach(id => {
+                        if (id > 0 && occupied[k]) occupied[k].push(id);
+                    });
+                } else if (typeof val === 'number' && val > 0 && occupied[k]) {
+                    occupied[k].push(val);
+                }
             });
         });
 
-        const calculatedPrice =
-            (parseFloat(duration) || 1) *
-            (parseInt(peopleCount) || 1) *
-            PRICE_PER_HOUR_PER_PERSON;
+        // Calculate base price using shared logic
+        const durationVal = parseFloat(duration) || 1;
+        const peopleVal = parseInt(peopleCount) || 1;
+        const devicesVal = devices || {};
+
+        const basePrice = calculateSessionPrice(
+            durationVal,
+            peopleVal,
+            devicesVal,
+            new Date()
+        );
+
+        // Use the price sent from frontend (which includes snacks) or fallback to calculated base
+        const finalPrice = price ? parseFloat(price) : basePrice;
 
         // 2. Validate availability (Check if ID is taken)
-        for (const key in devices) {
-            const requestedId = devices[key];
-            if (requestedId > 0) {
-                // Check if ID is within limits
-                if (requestedId > deviceLimits[key]) {
-                    return res.status(400).json({
-                        message: `${key.toUpperCase()} #${requestedId} does not exist (Max ${deviceLimits[key]})`
-                    });
-                }
-                // Check if ID is occupied
-                if (occupied[key].includes(requestedId)) {
-                    return res.status(400).json({
-                        message: `${key.toUpperCase()} #${requestedId} is currently occupied`
-                    });
+        // devicesVal is expected to be { ps: [1, 2] }
+        for (const key in devicesVal) {
+            const val = devicesVal[key];
+            const requestedIds = Array.isArray(val) ? val : (typeof val === 'number' && val > 0 ? [val] : []);
+
+            for (const requestedId of requestedIds) {
+                if (requestedId > 0) {
+                    // Check if ID is within limits
+                    if (requestedId > deviceLimits[key]) {
+                        return res.status(400).json({
+                            message: `${key.toUpperCase()} #${requestedId} does not exist (Max ${deviceLimits[key]})`
+                        });
+                    }
+                    // Check if ID is occupied
+                    if (occupied[key].includes(requestedId)) {
+                        return res.status(400).json({
+                            message: `${key.toUpperCase()} #${requestedId} is currently occupied`
+                        });
+                    }
                 }
             }
         }
@@ -100,11 +145,11 @@ const createSession = async (req, res) => {
         const newSession = {
             customerName,
             contactNumber,
-            duration: parseFloat(duration) || 1,
-            peopleCount: parseInt(peopleCount) || 1,
+            duration: durationVal,
+            peopleCount: peopleVal,
             snacks: snacks || '',
-            devices: devices || {}, // { ps: 5 }
-            price: calculatedPrice,
+            devices: devicesVal, // Store as is (arrays)
+            price: finalPrice,
             status: 'active',
             startTime: new Date().toISOString(),
             createdAt: new Date().toISOString()
@@ -112,6 +157,42 @@ const createSession = async (req, res) => {
 
 
         const docRef = await db.collection('sessions').add(newSession);
+        // ================= THUNDER COIN DEDUCTION =================
+if (thunderCoinsUsed > 0 && contactNumber) {
+    try {
+        const playerRef = db.collection('battelwinner').doc(contactNumber);
+        const playerSnap = await playerRef.get();
+
+        if (playerSnap.exists) {
+            const currentCoins = playerSnap.data().thunderCoins || 0;
+
+            // prevent cheating (frontend manipulation safety)
+            const safeDeduction = Math.min(currentCoins, thunderCoinsUsed);
+
+            await playerRef.update({
+                thunderCoins: currentCoins - safeDeduction,
+                updatedAt: new Date().toISOString()
+            });
+
+            console.log(`⚡ Deducted ${safeDeduction} coins from ${contactNumber}`);
+        }
+    } catch (coinErr) {
+        console.error("Thunder coin deduction failed:", coinErr);
+    }
+}
+
+
+        global.io.emit('session:started', {
+            id: docRef.id,
+            customer: customerName,
+            startTime: newSession.startTime,
+            duration: newSession.duration,
+            peopleCount: newSession.peopleCount,
+            price: newSession.price,
+            remainingAmount: newSession.remainingAmount,
+            devices: transformDevicesToArray(newSession.devices),
+            status: 'active'
+        });
 
         res.status(201).json({
             message: 'Session started successfully',
@@ -147,11 +228,11 @@ const getActiveSessions = async (req, res) => {
                 customer: data.customerName,
                 startTime: data.startTime,   // ISO string
                 duration: data.duration,     // hours
-                peopleCount: data.peopleCount,   // 🔥
-                price: data.price,               // 🔥
+                peopleCount: data.peopleCount,
+                price: data.price,
                 paidAmount: data.paidAmount || 0,
                 remainingAmount: data.remainingAmount ?? data.price,
-                devices: transformDevicesToArray(data.devices),
+                devices: transformDevicesToArray(data.devices), // Now returns objects
                 status: data.status
             });
 
@@ -166,19 +247,99 @@ const getActiveSessions = async (req, res) => {
 };
 
 const createBooking = async (req, res) => {
-    // Similar to session but with a 'bookingTime'
     try {
-        const { customerName, bookingTime, bookingEndTime, devices, peopleCount } = req.body;
-        // bookingTime expected ISO string
+        const { customerName, contactNumber, peopleCount, bookingTime, bookingEndTime, devices } = req.body;
+        // bookingTime, bookingEndTime expected ISO string
 
         if (!db) return res.status(500).json({ message: 'Database not initialized' });
 
+        const start = new Date(bookingTime);
+        const end = new Date(bookingEndTime);
+
+        // 1. Validate Availability for the requested time slot
+        // We need to check if requested devices are already taken in this slot
+
+        // Validation: Total devices cannot exceed total people
+        let totalRequested = 0;
+        Object.keys(devices || {}).forEach(k => {
+            const val = devices[k];
+            if (Array.isArray(val)) totalRequested += val.length;
+            // handle number case if strictly needed, but payload is usually arrays now
+        });
+
+        // peopleCount might be string or number
+        const pCount = parseInt(peopleCount) || 1;
+        if (totalRequested > pCount) {
+            return res.status(400).json({ message: `Cannot book ${totalRequested} devices for ${pCount} people.` });
+        }
+
+        const occupied = { ps: [], pc: [], vr: [], wheel: [], metabat: [] };
+
+        // Check Active Sessions
+        const activeSessions = await db.collection('sessions').where('status', '==', 'active').get();
+        activeSessions.forEach(doc => {
+            const s = doc.data();
+            const sStart = new Date(s.startTime);
+            const sEnd = new Date(sStart.getTime() + (s.duration || 1) * 60 * 60 * 1000);
+
+            // Overlap check
+            if (sStart < end && sEnd > start) {
+                const d = s.devices || {};
+                Object.keys(d).forEach(k => {
+                    const val = d[k]; // { ps: [1, 2] } or { ps: 1 }
+                    if (Array.isArray(val)) {
+                        val.forEach(id => { if (id) occupied[k].push(id); });
+                    } else if (typeof val === 'number' && val > 0) {
+                        occupied[k].push(val);
+                    }
+                });
+            }
+        });
+
+        // Check Upcoming Bookings
+        const bookings = await db.collection('bookings').where('status', '==', 'upcoming').get();
+        bookings.forEach(doc => {
+            const b = doc.data();
+            const bStart = b.bookingTime.toDate ? b.bookingTime.toDate() : new Date(b.bookingTime);
+            const bEnd = b.bookingEndTime?.toDate ? b.bookingEndTime.toDate() : new Date(b.bookingEndTime || bStart.getTime() + 60 * 60 * 1000);
+
+            if (bStart < end && bEnd > start) {
+                const d = b.devices || {};
+                Object.keys(d).forEach(k => {
+                    const val = d[k];
+                    if (Array.isArray(val)) {
+                        val.forEach(id => { if (id) occupied[k].push(id); });
+                    } else if (typeof val === 'number' && val > 0) {
+                        occupied[k].push(val);
+                    }
+                });
+            }
+        });
+
+        // Verify loaded devices are free and valid
+        for (const type of Object.keys(devices || {})) {
+            const requestedIds = devices[type]; // [1, 2]
+            if (Array.isArray(requestedIds)) {
+                for (const id of requestedIds) {
+                    // Check if ID is within physical limits
+                    if (deviceLimits[type] && id > deviceLimits[type]) {
+                        return res.status(400).json({ message: `${type.toUpperCase()} #${id} does not exist (Max ${deviceLimits[type]})` });
+                    }
+
+                    if (occupied[type] && occupied[type].includes(id)) {
+                        return res.status(400).json({ message: `${type.toUpperCase()} #${id} is not available at this time.` });
+                    }
+                }
+            }
+        }
+
         const newBooking = {
             customerName,
+            contactNumber: contactNumber || '',
             bookingTime,
             bookingEndTime: bookingEndTime || null,
             peopleCount: peopleCount || 1,
-            devices: devices || {}, // { ps: 1 ... }
+            devices: devices || {}, // { ps: [1, 2] ... }
             status: 'upcoming',
             createdAt: new Date().toISOString()
         };
@@ -202,17 +363,9 @@ const getUpcomingBookings = async (req, res) => {
 
         const bookings = snapshot.docs.map(doc => {
             const data = doc.data();
+            const bookingDate = data.bookingTime?.toDate ? data.bookingTime.toDate() : new Date(data.bookingTime);
+            const endDate = data.bookingEndTime ? (data.bookingEndTime.toDate ? data.bookingEndTime.toDate() : new Date(data.bookingEndTime)) : null;
 
-            // Ensure we handle both Firestore Timestamp and ISO String
-            const bookingDate = data.bookingTime?.toDate
-                ? data.bookingTime.toDate()
-                : new Date(data.bookingTime);
-
-            const endDate = data.bookingEndTime
-                ? (data.bookingEndTime.toDate ? data.bookingEndTime.toDate() : new Date(data.bookingEndTime))
-                : null;
-
-            // Calculate duration in hours
             let duration = 0;
             if (endDate) {
                 duration = (endDate - bookingDate) / (1000 * 60 * 60);
@@ -221,10 +374,11 @@ const getUpcomingBookings = async (req, res) => {
             return {
                 id: doc.id,
                 name: data.customerName,
-                time: bookingDate.toISOString(), // Start time
+                time: bookingDate.toISOString(),
                 endTime: endDate ? endDate.toISOString() : null,
                 duration: duration > 0 ? parseFloat(duration.toFixed(1)) : 0,
-                devices: transformDevicesToArray(data.devices || {})
+                devices: transformDevicesToArray(data.devices || {}), // Returns [{ type, id }]
+                peopleCount: data.peopleCount
             };
         });
 
@@ -232,9 +386,7 @@ const getUpcomingBookings = async (req, res) => {
 
     } catch (error) {
         console.error('❌ getUpcomingBookings error:', error);
-        return res.status(500).json({
-            message: 'Error fetching bookings'
-        });
+        return res.status(500).json({ message: 'Error fetching bookings' });
     }
 };
 
@@ -250,98 +402,69 @@ const getDeviceAvailabilityForTime = async (req, res) => {
         const requestStart = new Date(startTime);
         const requestEnd = new Date(endTime);
 
-        // Define device limits
-        const LIMITS = {
-            ps: 5,
-            pc: 10,
-            vr: 3,
-            wheel: 2,
-            metabat: 4
-        };
+        const occupied = { ps: [], pc: [], vr: [], wheel: [], metabat: [] };
 
-        // Initialize occupied devices
-        const occupied = {
-            ps: [],
-            pc: [],
-            vr: [],
-            wheel: [],
-            metabat: []
-        };
-
-        // Check active sessions that overlap with requested time
-        const activeSessions = await db.collection('sessions')
-            .where('status', '==', 'active')
-            .get();
-
+        // 1. Check Active Sessions overlap
+        const activeSessions = await db.collection('sessions').where('status', '==', 'active').get();
         activeSessions.forEach(doc => {
             const session = doc.data();
-            const sessionStart = new Date(session.startTime);
-            const sessionDuration = session.duration || 1; // hours
-            const sessionEnd = new Date(sessionStart.getTime() + sessionDuration * 60 * 60 * 1000);
+            const start = new Date(session.startTime);
+            const duration = session.duration || 1;
+            const end = new Date(start.getTime() + duration * 60 * 60 * 1000);
 
-            // Check if session overlaps with requested time
-            const overlaps = sessionStart < requestEnd && sessionEnd > requestStart;
-
-            if (overlaps && session.devices) {
-                Object.keys(session.devices).forEach(deviceKey => {
-                    const deviceNum = session.devices[deviceKey];
-                    if (deviceNum > 0 && !occupied[deviceKey].includes(deviceNum)) {
-                        occupied[deviceKey].push(deviceNum);
+            if (start < requestEnd && end > requestStart) {
+                const d = session.devices || {};
+                Object.keys(d).forEach(k => {
+                    const val = d[k];
+                    if (Array.isArray(val)) {
+                        val.forEach(id => { if (id && !occupied[k].includes(id)) occupied[k].push(id); });
+                    } else if (typeof val === 'number' && val > 0 && !occupied[k].includes(val)) {
+                        occupied[k].push(val);
                     }
                 });
             }
         });
 
-        // Check upcoming bookings that overlap with requested time
-        const upcomingBookings = await db.collection('bookings')
-            .where('status', '==', 'upcoming')
-            .get();
-
+        // 2. Check Upcoming Bookings overlap
+        const upcomingBookings = await db.collection('bookings').where('status', '==', 'upcoming').get();
         upcomingBookings.forEach(doc => {
-            const booking = doc.data();
-            const bookingStart = booking.bookingTime?.toDate
-                ? booking.bookingTime.toDate()
-                : new Date(booking.bookingTime);
+            const b = doc.data();
+            const start = b.bookingTime.toDate ? b.bookingTime.toDate() : new Date(b.bookingTime);
+            const end = b.bookingEndTime?.toDate ? b.bookingEndTime.toDate() : new Date(b.bookingEndTime || start.getTime() + 60 * 60 * 1000);
 
-            const bookingEnd = booking.bookingEndTime?.toDate
-                ? booking.bookingEndTime.toDate()
-                : new Date(booking.bookingEndTime);
-
-            // Check if booking overlaps with requested time
-            const overlaps = bookingStart < requestEnd && bookingEnd > requestStart;
-
-            if (overlaps && booking.devices) {
-                Object.keys(booking.devices).forEach(deviceKey => {
-                    const deviceNum = booking.devices[deviceKey];
-                    if (deviceNum > 0 && !occupied[deviceKey].includes(deviceNum)) {
-                        occupied[deviceKey].push(deviceNum);
+            if (start < requestEnd && end > requestStart) {
+                const d = b.devices || {};
+                Object.keys(d).forEach(k => {
+                    const val = d[k];
+                    if (Array.isArray(val)) {
+                        val.forEach(id => { if (id && !occupied[k].includes(id)) occupied[k].push(id); });
+                    } else if (typeof val === 'number' && val > 0 && !occupied[k].includes(val)) {
+                        occupied[k].push(val);
                     }
                 });
             }
         });
 
-        console.log(`📊 Availability for ${startTime} to ${endTime}:`, {
-            limits: LIMITS,
-            occupied
-        });
+        // Sort occupied arrays
+        Object.keys(occupied).forEach(k => occupied[k].sort((a, b) => a - b));
 
-        return res.status(200).json({
-            limits: LIMITS,
-            occupied
-        });
+        return res.status(200).json({ limits: deviceLimits, occupied });
 
     } catch (error) {
         console.error('❌ getDeviceAvailabilityForTime error:', error);
-        return res.status(500).json({
-            message: 'Error fetching time-based availability'
-        });
+        return res.status(500).json({ message: 'Error fetching time-based availability' });
     }
 };
 
 const updateSession = async (req, res) => {
     try {
         const { id } = req.params;
-        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow } = req.body;
+        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks } = req.body;
+
+        // Deduct snacks for update
+        if (snacks && Array.isArray(snacks) && snacks.length > 0) {
+            await snackService.deductStock(snacks);
+        }
 
 
         const ref = db.collection('sessions').doc(id);
@@ -371,8 +494,18 @@ const updateSession = async (req, res) => {
 
         if (newMember && newMember.devices) {
             Object.keys(newMember.devices).forEach(k => {
-                updatedDevices[k] =
-                    (updatedDevices[k] || 0) + (newMember.devices[k] || 0);
+                const existingVal = updatedDevices[k];
+                const newVal = newMember.devices[k];
+
+                // Convert existing to array if number (legacy)
+                const existingArr = Array.isArray(existingVal) ? existingVal : (typeof existingVal === 'number' && existingVal > 0 ? [existingVal] : []);
+                // Convert new to array if number (legacy)
+                const newArr = Array.isArray(newVal) ? newVal : (typeof newVal === 'number' && newVal > 0 ? [newVal] : []);
+
+                // Merge and unique
+                const merged = [...new Set([...existingArr, ...newArr])].sort((a, b) => a - b);
+
+                updatedDevices[k] = merged;
             });
 
             addedPeople = newMember.peopleCount || 0;
@@ -384,7 +517,7 @@ const updateSession = async (req, res) => {
             peopleCount: data.peopleCount + addedPeople,
             price: totalPrice,
             paidAmount: paid,
-            paidPeople: newPaidPeople,   // 👈 ADD
+            paidPeople: newPaidPeople,
             remainingAmount,
             devices: updatedDevices,
             members: newMember
@@ -393,6 +526,10 @@ const updateSession = async (req, res) => {
             updatedAt: new Date().toISOString()
         });
 
+
+        global.io.emit('session:updated', {
+            sessionId: id
+        });
 
         res.json({ message: "Session updated successfully" });
 
@@ -412,6 +549,8 @@ const completeSession = async (req, res) => {
             completedAt: new Date().toISOString()
         });
 
+
+        global.io.emit('session:completed', { sessionId: id });
         res.json({ message: 'Session completed' });
     } catch (err) {
         console.error(err);
@@ -488,20 +627,23 @@ const convertBookingsToSessions = async (req, res) => {
                     duration = (endTime - bookingTime) / (1000 * 60 * 60); // Convert to hours
                 }
 
-                // Count total devices for peopleCount estimation
-                const deviceCounts = booking.devices || {};
-                const totalDevices = Object.values(deviceCounts).reduce((sum, count) => sum + count, 0);
-                const estimatedPeople = Math.max(1, totalDevices); // At least 1 person
+                // Use the people count from the booking (or default to 1)
+                const finalPeopleCount = booking.peopleCount || 1;
 
-                // Calculate price
-                const calculatedPrice = duration * estimatedPeople * PRICE_PER_HOUR_PER_PERSON;
+                // Calculate price using shared logic
+                const calculatedPrice = calculateSessionPrice(
+                    parseFloat(duration.toFixed(2)),
+                    finalPeopleCount,
+                    booking.devices || {},
+                    now // Use current time for pricing rules
+                );
 
                 // Create new session
                 const newSession = {
                     customerName: booking.customerName,
                     contactNumber: booking.contactNumber || '',
                     duration: parseFloat(duration.toFixed(2)),
-                    peopleCount: estimatedPeople,
+                    peopleCount: finalPeopleCount,
                     snacks: '',
                     devices: booking.devices || {},
                     price: calculatedPrice,
@@ -528,6 +670,18 @@ const convertBookingsToSessions = async (req, res) => {
                     sessionId: sessionRef.id,
                     customerName: booking.customerName
                 });
+
+                // Emit specific event for this conversion
+                global.io.emit('booking:converted', {
+                    bookingId: doc.id,
+                    sessionId: sessionRef.id
+                });
+
+                global.io.emit('session:started', {
+                    id: sessionRef.id,
+                    ...newSession,
+                    devices: transformDevicesToArray(newSession.devices)
+                });
             }
         }
 
@@ -540,6 +694,7 @@ const convertBookingsToSessions = async (req, res) => {
                 conversions
             })
             : { converted: convertedCount, conversions };
+
 
     } catch (error) {
         console.error('❌ Error converting bookings:', error);

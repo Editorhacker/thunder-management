@@ -116,3 +116,95 @@ button {
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
 }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: grid;
+  place-items: center;
+  z-index: 9999;
+}
+
+.modal-card {
+  width: 360px;
+  background: #18181b;
+  border-radius: 16px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.modal-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1rem;
+  color: #facc15;
+}
+
+.modal-header button {
+  background: none;
+  border: none;
+  color: #a1a1aa;
+  cursor: pointer;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  background: #0f0f12;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  margin-bottom: 0.75rem;
+}
+
+.modal-search-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.modal-result {
+  margin-top: 1rem;
+  background: rgba(0,0,0,0.4);
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.modal-result .name {
+  font-weight: 700;
+}
+
+.modal-result .phone {
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+.modal-result .coins {
+  margin-top: 6px;
+  font-weight: 800;
+  color: #facc15;
+}
+
+.modal-error {
+  margin-top: 6px;
+  color: #ef4444;
+  font-size: 0.75rem;
+  text-align: center;
+}

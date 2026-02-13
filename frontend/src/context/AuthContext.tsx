@@ -3,9 +3,9 @@ import {
   useContext,
   useEffect,
   useState,
-  
+
 } from 'react';
-import type {ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
@@ -56,7 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // 🔥 Attach token globally
         axios.defaults.headers.common.Authorization = `Bearer ${token}`;
 
-        const res = await axios.get('http://localhost:5000/api/auth/me');
+        const res = await axios.get('https://thunder-management.onrender.com/api/auth/me');
 
         setUser({
           uid: res.data.user.uid,

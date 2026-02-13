@@ -1,52 +1,97 @@
-
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
     FaCalendarAlt, FaDownload, FaChartLine, FaRobot, FaUserCog
 } from 'react-icons/fa';
-import * as XLSX from 'xlsx';
+import { motion } from 'framer-motion';
 
 import DashboardLayout from '../layouts/DashboardLayout';
 import {
-    KPI_STATS, REVENUE_TRENDS
-} from '../data/mockOwnerData';
-
-import {
     GlassCard, GradientTitle, TabGroup, ActionButton, QuickStat
 } from '../components/owner/ui/ModernComponents';
-
-import LiveFloorStatus from '../components/owner/LiveFloorStatus';
+import SubscriptionCard from '../components/owner/SubscriptionCard';
 import RecentTransactions from '../components/owner/RecentTransactions';
-import SnackSalesComparison from '../components/owner/SnackSalesComparison';
+
 import OwnerPieCharts from '../components/owner/OwnerPieCharts';
+import SnackOverview from '../components/owner/SnackOverview'; // Import SnackOverview
 
 import './OwnerDashboard.css';
+
+interface KPIStat {
+    label: string;
+    value: string | number;
+    trend: number;
+}
 
 const OwnerDashboard: React.FC = () => {
     const [timeFilter, setTimeFilter] = useState('Today');
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
+    const [chartMode, setChartMode] = useState<'hour' | 'day'>('hour');
+    const [kpiStats, setKpiStats] = useState<KPIStat[]>([]);
+    const [revenueTrends, setRevenueTrends] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Live clock
     useEffect(() => {
-        const interval = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
+        const interval = setInterval(
+            () => setCurrentTime(new Date().toLocaleTimeString()),
+            1000
+        );
         return () => clearInterval(interval);
     }, []);
 
-    const filterOptions = ['Today', 'Yesterday', 'Last Week', 'This Month'];
+    // Fetch dashboard data
+    useEffect(() => {
+        const fetchDashboard = async () => {
+            try {
+                setLoading(true);
 
-    // Data Filtering logic
-    const currentStats = useMemo(() => {
-        const key = timeFilter.replace(' ', '').replace(/^./, str => str.toLowerCase());
-        return KPI_STATS[key] || KPI_STATS['today'];
+                const range = timeFilter.toLowerCase().replace(' ', '');
+                const res = await fetch(`https://thunder-management.onrender.com/api/owner/ownerstat?range=${range}`);
+                const data = await res.json();
+
+                setKpiStats(data.kpiStats || []);
+                setRevenueTrends(data.revenueTrends || []);
+            } catch (err) {
+                console.error('❌ Dashboard fetch failed:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboard();
+    }, [timeFilter]);
+    useEffect(() => {
+        const fetchRevenueFlow = async () => {
+            try {
+                const range = timeFilter.toLowerCase().replace(' ', '');
+                const res = await fetch(
+                    `https://thunder-management.onrender.com/api/owner/revenueflow?range=${range}`
+                );
+                const data = await res.json();
+
+                setRevenueTrends(data.data || []);
+                setChartMode(data.groupBy || 'hour');
+            } catch (err) {
+                console.error('❌ Revenue flow fetch failed', err);
+            }
+        };
+
+        fetchRevenueFlow();
     }, [timeFilter]);
 
+
+
+    const filterOptions = ['Today', 'Yesterday', 'Last Week', 'This Month'];
+
     const handleDownload = () => {
-        // ... previous download logic
-        alert("Downloading Report...");
+        alert('Downloading Report...');
     };
 
-    // Helper for Icons
+    // Icon helper
     const getIconForLabel = (label: string) => {
         if (label.includes('Revenue')) return FaChartLine;
         if (label.includes('Time')) return FaCalendarAlt;
@@ -56,11 +101,19 @@ const OwnerDashboard: React.FC = () => {
     return (
         <DashboardLayout>
             <div className="owner-dashboard-container">
-                {/* 1. Header Section */}
-                <header className="dashboard-header">
+
+                {/* 1. Header */}
+                <motion.header
+                    className="dashboard-header"
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                >
                     <div className="header-left">
                         <h1 className="header-title">Command Center</h1>
-                        <p className="header-subtitle"><FaUserCog className="inline-icon" /> Welcome back, Owner</p>
+                        <p className="header-subtitle">
+                            <FaUserCog className="inline-icon" /> Welcome back, Owner
+                        </p>
                     </div>
 
                     <div className="header-center">
@@ -68,7 +121,11 @@ const OwnerDashboard: React.FC = () => {
                     </div>
 
                     <div className="header-actions">
-                        <TabGroup options={filterOptions} active={timeFilter} onChange={setTimeFilter} />
+                        <TabGroup
+                            options={filterOptions}
+                            active={timeFilter}
+                            onChange={setTimeFilter}
+                        />
                         <ActionButton
                             icon={FaDownload}
                             label="Export"
@@ -76,79 +133,112 @@ const OwnerDashboard: React.FC = () => {
                             variant="primary"
                         />
                     </div>
-                </header>
+                </motion.header>
 
-                {/* 2. KPI Hero Section (Top 4 Stats) */}
+                {/* 2. KPI Cards */}
                 <section className="hero-stats-grid">
-                    {currentStats.map((stat, idx) => (
+                    {!loading && kpiStats.map((stat, idx) => (
                         <QuickStat
                             key={idx}
                             label={stat.label}
                             value={String(stat.value)}
-                            trend={stat.change}
+                            trend={Number(stat.trend) || 0}
                             icon={getIconForLabel(stat.label)}
                             delay={idx * 0.1}
                         />
                     ))}
                 </section>
 
-                {/* 3. The "Pulse" - Central Operational View */}
+                {/* 3. Revenue + Floor */}
                 <section className="operational-grid">
-                    {/* Left: Revenue Chart (Wider) */}
                     <div className="main-chart-area">
                         <GlassCard className="chart-panel">
                             <div className="panel-header">
                                 <GradientTitle size="medium">Revenue Flow</GradientTitle>
                             </div>
+
                             <div className="chart-wrapper">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={REVENUE_TRENDS}>
+                                <ResponsiveContainer width="90%" height="100%">
+                                    <AreaChart data={revenueTrends}>
                                         <defs>
                                             <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
+                                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.45} />
                                                 <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                        <XAxis dataKey="date" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
-                                        <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `₹${val}`} />
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                            itemStyle={{ color: '#a78bfa' }}
+
+                                        <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            stroke="rgba(255,255,255,0.05)"
+                                            vertical={false}
                                         />
+
+                                        {/* X Axis = Hour */}
+                                        <XAxis
+                                            dataKey="time"
+                                            stroke="#64748b"
+                                            fontSize={11}
+                                            tickFormatter={(val) =>
+                                                chartMode === 'hour' ? `${val}:00` : val
+                                            }
+                                            tickLine={false}
+                                            axisLine={false}
+                                        />
+
+
+                                        {/* Y Axis = Revenue */}
+                                        <YAxis
+                                            stroke="#64748b"
+                                            fontSize={11}
+                                            tickFormatter={(v) => `₹${v}`}
+                                            tickLine={false}
+                                            axisLine={false}
+                                        />
+
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: '#0f172a',
+                                                border: 'none',
+                                                borderRadius: '8px'
+                                            }}
+                                            formatter={(value?: number) => [`₹${value ?? 0}`, 'Revenue']}
+                                            labelFormatter={(label) =>
+                                                chartMode === 'hour' ? `${label}:00` : label
+                                            }
+                                        />
+
                                         <Area
                                             type="monotone"
                                             dataKey="amount"
                                             stroke="#8b5cf6"
                                             strokeWidth={3}
-                                            fillOpacity={1}
                                             fill="url(#colorRev)"
+                                            dot={false}
                                         />
                                     </AreaChart>
                                 </ResponsiveContainer>
+
                             </div>
                         </GlassCard>
                     </div>
 
-                    {/* Right: Live Floor Status */}
-                    <div className="floor-status-area">
-                        <LiveFloorStatus />
-                    </div>
+                    <OwnerPieCharts timeFilter={timeFilter} />
                 </section>
 
-                {/* 4. Secondary Grid: Pie Charts & Transactions */}
+                {/* 4. Secondary */}
                 <section className="secondary-grid">
                     <div className="pie-charts-area">
-                        <OwnerPieCharts />
+                        <RecentTransactions timeFilter={timeFilter} />
+
                     </div>
                     <div className="transactions-area">
-                        <RecentTransactions />
+                        <SubscriptionCard />
                     </div>
                 </section>
 
-                {/* 5. Bottom: Detailed Snack Analysis */}
-                <section className="bottom-section">
-                    <SnackSalesComparison />
+                {/* 5. Snacks */}
+                <section className="bottom-section" style={{ marginTop: '1.5rem' }}>
+                    <SnackOverview />
                 </section>
 
             </div>

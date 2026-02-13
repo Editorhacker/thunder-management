@@ -6,6 +6,7 @@
     border-radius: 20px;
     padding: 1.5rem;
     font-family: 'Inter', sans-serif;
+    
 }
 
 .leaderboard-header {
@@ -48,12 +49,14 @@
     align-items: center;
     gap: 1rem;
     transition: all 0.2s;
+     
 }
 
 .leaderboard-item:hover {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.1);
     transform: translateX(4px);
+    
 }
 
 .rank-badge {

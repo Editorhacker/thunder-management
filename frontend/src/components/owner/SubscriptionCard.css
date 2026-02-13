@@ -1,0 +1,80 @@
+.subscription-card {
+  padding: 1.5rem;
+}
+
+.subscription-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.subscription-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.subscription-item {
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+}
+
+.empty-text {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal-card {
+  background: #020617;
+  border-radius: 16px;
+  width: 360px;
+  padding: 1.5rem;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.modal-header svg {
+  cursor: pointer;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.modal-body input {
+  background: #020617;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  padding: 0.5rem;
+  color: white;
+}
+
+.submit-btn {
+  margin-top: 0.75rem;
+  padding: 0.6rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  border: none;
+  color: white;
+  cursor: pointer;
+}

@@ -39,7 +39,7 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
         }
 
         try {
-            await axios.post('http://localhost:5000/api/battles/start', {
+            await axios.post('https://thunder-management.onrender.com/api/battles/start', {
                 crownHolder,
                 challenger
             });

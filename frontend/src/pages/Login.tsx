@@ -1,5 +1,6 @@
-import { useState, ChangeEvent, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaGamepad } from 'react-icons/fa';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../config/firebase';
@@ -41,7 +42,7 @@ const Login = () => {
             setLoading(true);
 
             /* 1️⃣ Resolve username → email */
-            const resolveRes = await axios.post('http://localhost:5000/api/auth/resolve-username', {
+            const resolveRes = await axios.post('https://thunder-management.onrender.com/api/auth/resolve-username', {
                 username
             });
 
@@ -65,7 +66,7 @@ const Login = () => {
             const token = await user.getIdToken();
 
             /* 4️⃣ Get role */
-            const meRes = await axios.get('http://localhost:5000/api/auth/me', {
+            const meRes = await axios.get('https://thunder-management.onrender.com/api/auth/me', {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -144,16 +145,16 @@ const Login = () => {
                     </button>
                 </form>
 
-                <div className="auth-footer">
+                {/* <div className="auth-footer">
                     <p>
                         Don't have an account?{' '}
                         <Link to="/signup" className="link-text">
                             Sign Up
                         </Link>
                     </p>
-                </div>
+                </div> */}
             </div>
-                        <style>{`
+            <style>{`
         .auth-container {
           min-height: 100vh;
           display: flex;

@@ -13,17 +13,20 @@ import {
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import axios from 'axios';
 import './SessionEntry.css';
+import { calculateSessionPrice, isFunNightTime, isNormalHourTime } from '../../utils/pricing';
 
-/* ---------------- TYPES ---------------- */
+
+/* ---------------- SNACK STATE ---------------- */
 
 type DeviceKeys = 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat';
 
+// Changed to number[] to store multiple machine IDs
 interface DeviceCounts {
-  ps: number;
-  pc: number;
-  vr: number;
-  wheel: number;
-  metabat: number;
+  ps: number[];
+  pc: number[];
+  vr: number[];
+  wheel: number[];
+  metabat: number[];
 }
 
 interface FormState {
@@ -35,69 +38,11 @@ interface FormState {
   devices: DeviceCounts;
 }
 
-/* ------------- DEVICE WIDGET (DROPDOWN) ------------ */
+import DeviceDropdown from './DeviceDropdown';
 
-interface DeviceDropdownProps {
-  label: string;
-  limit: number;
-  value: number;
-  occupied: number[];
-  icon: React.ReactNode;
-  onChange: (val: number) => void;
-}
+/* ---------------- MAIN ---------------- */
 
-const DeviceDropdown: React.FC<DeviceDropdownProps> = ({
-  label,
-  limit,
-  value,
-  occupied,
-  icon,
-  onChange
-}) => {
-  const isActive = value > 0;
-  // It's "sold out" if all slots are occupied? No, we just show occupied per slot.
-  // We can show "X available" by limit - occupied.length
-  const availableCount = limit - occupied.length;
-  const isEssentiallyFull = availableCount <= 0;
-
-  return (
-    <div className={`device-card-item ${isActive ? 'active' : ''} ${isEssentiallyFull ? 'sold-out' : ''}`}>
-      <div className="device-icon-wrapper">
-        {icon}
-      </div>
-      <div className="device-info">
-        <span className="device-name">{label}</span>
-        <span className="device-stock">
-          {isEssentiallyFull ? 'Occupied' : `${availableCount} available`}
-        </span>
-      </div>
-
-      {/* Dropdown Control */}
-      <div className="dropdown-control" onClick={(e) => e.stopPropagation()}>
-        <select
-          className="mini-select"
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-        // Only disable if we want to lock it completely, but user wants to see "Occupied" too. 
-        // Let's keep it enabled but disable options?
-        // If value is 0 (unselected), and limit is full, we should probably still allow seeing the list?
-        // But user said: "no you are getting the Logic entirely wrong ... I want you to substract the avilable device."
-        // Wait, user said: "I dont want you to substract the avilable device." -> Show all.
-        >
-          <option value={0}>None</option>
-          {Array.from({ length: limit }, (_, i) => i + 1).map(num => {
-            const isTaken = occupied.includes(num);
-            return (
-              <option key={num} value={num} disabled={isTaken}>
-                {num} {isTaken ? '(Occupied)' : ''}
-              </option>
-            );
-          })}
-        </select>
-      </div>
-    </div>
-  );
-};
+import SnackSelector from './SnackSelector';
 
 /* ---------------- MAIN ---------------- */
 
@@ -111,17 +56,17 @@ const SessionEntry: React.FC = () => {
     peopleCount: 1,
     snacks: '',
     devices: {
-      ps: 0,
-      pc: 0,
-      vr: 0,
-      wheel: 0,
-      metabat: 0
+      ps: [],
+      pc: [],
+      vr: [],
+      wheel: [],
+      metabat: []
     }
   });
 
-  // State for availability
+  // State for availability - occupied is still array of numbers
   const [availability, setAvailability] = useState<{
-    limits: DeviceCounts;
+    limits: Record<DeviceKeys, number>; // Limits are just numbers (e.g. 6 PS5s)
     occupied: { [key in DeviceKeys]: number[] };
   }>({
     limits: { ps: 0, pc: 0, vr: 0, wheel: 0, metabat: 0 },
@@ -135,7 +80,7 @@ const SessionEntry: React.FC = () => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
 
-  const updateDevice = (key: DeviceKeys, value: number) => {
+  const updateDevice = (key: DeviceKeys, value: number[]) => {
     setForm(prev => ({
       ...prev,
       devices: { ...prev.devices, [key]: value }
@@ -144,8 +89,10 @@ const SessionEntry: React.FC = () => {
 
   const fetchAvailability = async () => {
     try {
-      const res = await axios.get<{ limits: DeviceCounts; occupied: { [key in DeviceKeys]: number[] } }>( // Updated type for response
-        'http://localhost:5000/api/sessions/availability'
+      // Backend returns limits as numbers { ps: 6 } and occupied as arrays { ps: [1,2] }
+      // We need to map `limits` properly if it comes as object
+      const res = await axios.get<{ limits: Record<DeviceKeys, number>; occupied: { [key in DeviceKeys]: number[] } }>(
+        'https://thunder-management.onrender.com/api/sessions/availability'
       );
       setAvailability(res.data);
     } catch (e) {
@@ -155,11 +102,12 @@ const SessionEntry: React.FC = () => {
 
   useEffect(() => {
     fetchAvailability();
-    const interval = setInterval(fetchAvailability, 5000); // Poll every 5s
+    const interval = setInterval(fetchAvailability, 30000); // Poll every 30s
     return () => clearInterval(interval);
   }, []);
 
-  const PRICE_PER_HOUR_PER_PERSON = 50;
+
+  const [snackCost, setSnackCost] = useState<number>(0);
 
   /* ---------- SAFE DURATION ---------- */
   const durationStr = form.duration || "00:00";
@@ -168,8 +116,17 @@ const SessionEntry: React.FC = () => {
   const m = Number(parts[1]) || 0;
   const durationInHours = h + m / 60;
 
-  const totalPrice =
-    durationInHours * form.peopleCount * PRICE_PER_HOUR_PER_PERSON;
+  // New Pricing Logic
+  const calcBasePrice = calculateSessionPrice(
+    durationInHours,
+    form.peopleCount,
+    (form.devices as unknown) as Record<string, number[]>,
+    new Date() // Current time for Fun Night check
+  );
+
+  const totalPrice = calcBasePrice + snackCost;
+  const isFunNight = isFunNightTime();
+  const isNormalHour = isNormalHourTime();
   /* ----------------------------------- */
 
   const startSession = async () => {
@@ -179,7 +136,7 @@ const SessionEntry: React.FC = () => {
         return;
       }
 
-      await axios.post('http://localhost:5000/api/sessions/start', {
+      await axios.post('https://thunder-management.onrender.com/api/sessions/start', {
         ...form,
         duration: durationInHours,
         price: totalPrice
@@ -194,7 +151,7 @@ const SessionEntry: React.FC = () => {
         duration: "00:00",
         peopleCount: 1,
         snacks: '',
-        devices: { ps: 0, pc: 0, vr: 0, wheel: 0, metabat: 0 }
+        devices: { ps: [], pc: [], vr: [], wheel: [], metabat: [] }
       });
 
       // Re-fetch availability instantly
@@ -207,12 +164,6 @@ const SessionEntry: React.FC = () => {
     }
   };
 
-  const snackOptions = [
-    { label: "None", value: "" },
-    { label: "Chips", value: "chips" },
-    { label: "Drinks", value: "drinks" },
-    { label: "Combo", value: "combo" }
-  ];
 
   /* -----------------------------
      JSX
@@ -223,7 +174,11 @@ const SessionEntry: React.FC = () => {
       <div className="session-header" onClick={() => setIsOpen(!isOpen)}>
         <div className="header-title">
           <div className="header-icon"><FaRocket /></div>
-          <span>New Session</span>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span>New Session</span>
+            {isFunNight && <span style={{ color: '#ec4899', fontSize: '0.8em', marginLeft: 8 }}>🌙 Fun Night</span>}
+            {isNormalHour && <span style={{ color: '#3b82f6', fontSize: '0.8em', marginLeft: 8 }}>☀️ Normal Hour</span>}
+          </div>
         </div>
         <div className="toggle-icon" style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
           <FaChevronDown />
@@ -301,19 +256,12 @@ const SessionEntry: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="field-group" style={{ gridColumn: '1 / -1' }}>
-                  <label className="field-label">Snacks / Combo</label>
-                  <select
-                    className="field-input"
-                    value={form.snacks}
-                    style={{ width: '100%', appearance: 'none', cursor: 'pointer' }}
-                    onChange={e => updateField('snacks', e.target.value)}
-                  >
-                    {snackOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
+                <SnackSelector
+                  onChange={(val, cost) => {
+                    updateField('snacks', val);
+                    setSnackCost(cost);
+                  }}
+                />
               </div>
 
               {/* Devices */}
@@ -323,45 +271,45 @@ const SessionEntry: React.FC = () => {
                   <DeviceDropdown
                     icon={<FaPlaystation />}
                     label="PS5"
-                    limit={availability.limits.ps} // Changed from max
+                    limit={availability.limits.ps}
                     value={form.devices.ps}
-                    occupied={availability.occupied.ps || []} // New prop
+                    occupied={availability.occupied.ps || []}
                     onChange={v => updateDevice('ps', v)}
                   />
 
                   <DeviceDropdown
                     icon={<FaDesktop />}
                     label="PC"
-                    limit={availability.limits.pc} // Changed from max
+                    limit={availability.limits.pc}
                     value={form.devices.pc}
-                    occupied={availability.occupied.pc || []} // New prop
+                    occupied={availability.occupied.pc || []}
                     onChange={v => updateDevice('pc', v)}
                   />
 
                   <DeviceDropdown
                     icon={<FaVrCardboard />}
                     label="VR"
-                    limit={availability.limits.vr} // Changed from max
+                    limit={availability.limits.vr}
                     value={form.devices.vr}
-                    occupied={availability.occupied.vr || []} // New prop
+                    occupied={availability.occupied.vr || []}
                     onChange={v => updateDevice('vr', v)}
                   />
 
                   <DeviceDropdown
                     icon={<GiSteeringWheel />}
                     label="Wheel"
-                    limit={availability.limits.wheel} // Changed from max
+                    limit={availability.limits.wheel}
                     value={form.devices.wheel}
-                    occupied={availability.occupied.wheel || []} // New prop
+                    occupied={availability.occupied.wheel || []}
                     onChange={v => updateDevice('wheel', v)}
                   />
 
                   <DeviceDropdown
                     icon={<GiCricketBat />}
                     label="MetaBat"
-                    limit={availability.limits.metabat} // Changed from max
+                    limit={availability.limits.metabat}
                     value={form.devices.metabat}
-                    occupied={availability.occupied.metabat || []} // New prop
+                    occupied={availability.occupied.metabat || []}
                     onChange={v => updateDevice('metabat', v)}
                   />
                 </div>
@@ -369,15 +317,17 @@ const SessionEntry: React.FC = () => {
 
               {/* Footer */}
               <div className="action-footer">
-                <div className="price-display">
-                  <span className="price-label">Estimated Total</span>
-                  <span className="price-val">₹{Math.round(totalPrice)}</span>
-                </div>
+                {Object.values(form.devices).some(val => val.length > 0) && (
+                  <div className="price-display">
+                    <span className="price-label">Estimated Total</span>
+                    <span className="price-val">₹{Math.round(totalPrice)}</span>
+                  </div>
+                )}
 
                 <button
                   className="start-session-btn"
                   onClick={startSession}
-                  disabled={!form.customerName || (durationInHours <= 0)}
+                  disabled={!form.customerName || (durationInHours <= 0) || !Object.values(form.devices).some(val => val.length > 0)}
                 >
                   <span>Start Session</span>
                   <FaChevronDown style={{ transform: 'rotate(-90deg)' }} />

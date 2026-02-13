@@ -1,74 +1,78 @@
-
-import React, { useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
-import { MACHINE_ANALYTICS, SNACK_INTELLIGENCE } from '../../data/mockOwnerData';
 import { GlassCard, GradientTitle } from './ui/ModernComponents';
 
-const COLORS = ['#eab308', '#3b82f6', '#94a3b8', '#1e40af', '#ffffff'];
+const COLORS = ['#eab308', '#3b82f6', '#22c55e', '#a855f7', '#f97316'];
 
-const CustomPieChart = ({ title, data, dataKey, nameKey }: { title: string, data: any[], dataKey: string, nameKey: string }) => {
+interface PieData {
+    name: string;
+    value: number;
+}
+
+interface Props {
+    timeFilter: string;
+}
+
+const CustomPieChart = ({
+    title,
+    data
+}: {
+    title: string;
+    data: PieData[];
+}) => (
+    <GlassCard>
+        <GradientTitle size="medium">{title}</GradientTitle>
+        <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                    <Pie
+                        data={data}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                        nameKey="name"
+                    >
+                        {data.map((_, i) => (
+                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                        ))}
+                    </Pie>
+
+                    <Tooltip formatter={(v?: number) => [`₹${v ?? 0}`, 'Revenue']} />
+                    <Legend verticalAlign="bottom" height={36} />
+                </PieChart>
+            </ResponsiveContainer>
+        </div>
+    </GlassCard>
+);
+
+const OwnerPieCharts: React.FC<Props> = ({ timeFilter }) => {
+    const [machineRevenue, setMachineRevenue] = useState<PieData[]>([]);
+
+    useEffect(() => {
+        const fetchRevenue = async () => {
+            try {
+                const range = timeFilter.toLowerCase().replace(' ', '');
+                const res = await fetch(
+                    `https://thunder-management.onrender.com/api/owner/revenue-by-machine?range=${range}`
+                );
+                const data = await res.json();
+                setMachineRevenue(data);
+            } catch (err) {
+                console.error('❌ Revenue by machine fetch failed', err);
+            }
+        };
+
+        fetchRevenue();
+    }, [timeFilter]);
+
     return (
-        <GlassCard>
-            <GradientTitle size="medium">{title}</GradientTitle>
-            <div style={{ width: '100%', height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={data}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={100}
-                            paddingAngle={5}
-                            dataKey={dataKey}
-                            nameKey={nameKey}
-                            stroke="none"
-                        >
-                            {data.map((_, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                        </Pie>
-                        <Tooltip
-                            contentStyle={{ backgroundColor: '#1e293b', borderColor: 'rgba(255,255,255,0.1)', color: '#f8fafc' }}
-                            itemStyle={{ color: '#f8fafc' }}
-                        />
-                        <Legend
-                            verticalAlign="bottom"
-                            height={36}
-                            iconType="circle"
-                            wrapperStyle={{ color: '#94a3b8', fontSize: '12px', paddingTop: '10px' }}
-                        />
-                    </PieChart>
-                </ResponsiveContainer>
-            </div>
-        </GlassCard>
-    );
-};
-
-const OwnerPieCharts: React.FC = () => {
-    // Transform Machine Data for Pie (Revenue Share)
-    const machineData = useMemo(() => {
-        return MACHINE_ANALYTICS.map(m => ({ name: m.name.split('(')[0].trim(), value: m.revenue }));
-    }, []);
-
-    // Transform Snack Data for Pie (Sales Share)
-    const snackData = useMemo(() => {
-        return SNACK_INTELLIGENCE.map(s => ({ name: s.name, value: s.soldCount }));
-    }, []);
-
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <CustomPieChart
                 title="Revenue by Machine"
-                data={machineData}
-                dataKey="value"
-                nameKey="name"
-            />
-            <CustomPieChart
-                title="Snack Popularity"
-                data={snackData}
-                dataKey="value"
-                nameKey="name"
+                data={machineRevenue}
             />
         </div>
     );

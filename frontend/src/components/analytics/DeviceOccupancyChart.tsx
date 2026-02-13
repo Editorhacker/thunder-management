@@ -1,16 +1,82 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 
-const data = [
-    { name: 'Occupied', value: 12 },
-    { name: 'Remaining', value: 8 },
-];
+const COLORS = ['#fbbf24', '#1e293b'];
+const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+        const { name, value, fill } = payload[0];
 
-const COLORS = ['#fbbf24', '#1e293b']; // Accent Yellow vs Dark Border color for remaining
+        return (
+            <div
+                style={{
+                    backgroundColor: 'var(--bg-dark)',
+                    border: `1px solid ${fill}`,
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.5)'
+                }}
+            >
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }}
+                >
+                    <span
+                        style={{
+                            width: '10px',
+                            height: '10px',
+                            borderRadius: '50%',
+                            backgroundColor: fill
+                        }}
+                    />
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                        {name}
+                    </span>
+                </div>
+
+                <div
+                    style={{
+                        marginTop: '4px',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.85rem'
+                    }}
+                >
+                    {value} devices
+                </div>
+            </div>
+        );
+    }
+
+    return null;
+};
+
 
 const DeviceOccupancyChart: React.FC = () => {
+    const [data, setData] = useState([
+        { name: 'Occupied', value: 0 },
+        { name: 'Remaining', value: 0 }
+    ]);
+
+    useEffect(() => {
+        const fetchOccupancy = async () => {
+            try {
+                const res = await axios.get('https://thunder-management.onrender.com/api/analytics/deviceoccupancy');
+                setData([
+                    { name: 'Occupied', value: res.data.occupied },
+                    { name: 'Remaining', value: res.data.remaining }
+                ]);
+            } catch (error) {
+                console.error('Occupancy fetch error', error);
+            }
+        };
+
+        fetchOccupancy();
+    }, []);
+
     return (
         <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -27,14 +93,15 @@ const DeviceOccupancyChart: React.FC = () => {
             <h3 style={{
                 color: "var(--text-primary)",
                 marginBottom: "20px",
-                textAlign: "left",
                 fontFamily: "var(--font-display)",
                 fontSize: '1.1rem',
                 borderLeft: '3px solid var(--accent-yellow)',
                 paddingLeft: '12px'
-            }}>Device Occupancy</h3>
+            }}>
+                Device Occupancy (Last 24 hrs)
+            </h3>
 
-            <div style={{ flex: 1, width: "100%", height: "100%" }}>
+            <div style={{ flex: 1 }}>
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
@@ -43,30 +110,28 @@ const DeviceOccupancyChart: React.FC = () => {
                             cy="50%"
                             innerRadius={80}
                             outerRadius={110}
-                            fill="#8884d8"
                             paddingAngle={2}
                             dataKey="value"
-                            stroke="none"
-                            label={({ name, percent }) => `${name} ${(percent ? percent * 100 : 0).toFixed(0)}%`}
+                            stroke="#fbbf24"
+                            label={({ name, percent }) =>
+                                `${name} ${((percent || 0) * 100).toFixed(0)}%`
+                            }
                         >
                             {data.map((_, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                <Cell
+                                    key={`cell-${index}`}
+                                    fill={COLORS[index]}
+                                />
                             ))}
                         </Pie>
-                        <Tooltip
-                            contentStyle={{
-                                backgroundColor: 'var(--bg-dark)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '8px',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.5)'
-                            }}
-                            itemStyle={{ color: 'var(--text-primary)' }}
-                        />
+
+                        <Tooltip content={<CustomTooltip />} />
+
+
                         <Legend
                             verticalAlign="bottom"
-                            height={36}
-                            wrapperStyle={{ color: 'var(--text-secondary)' }}
                             iconType="circle"
+                            wrapperStyle={{ color: 'var(--text-secondary)' }}
                         />
                     </PieChart>
                 </ResponsiveContainer>
