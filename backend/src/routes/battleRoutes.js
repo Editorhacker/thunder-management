@@ -20,5 +20,8 @@ router.get('/thunder-leaderboard', getThunderLeaderboard);
 router.get('/thunder-player', getThunderPlayer);
 
 
+const { getPlayerActivity } = require('../controllers/playerActivityController');
+
+router.get('/player-activity', getPlayerActivity);
 module.exports = router;
 

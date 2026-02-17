@@ -46,42 +46,34 @@ const OwnerDashboard: React.FC = () => {
 
     // Fetch dashboard data
     useEffect(() => {
-        const fetchDashboard = async () => {
+        const fetchDashboardData = async () => {
+            setLoading(true);
+            const range = timeFilter.toLowerCase().replace(' ', '');
+
             try {
-                setLoading(true);
+                // Fetch stats and revenue flow in parallel to avoid race conditions
+                const [statsRes, flowRes] = await Promise.all([
+                    fetch(`/api/owner/ownerstat?range=${range}`),
+                    fetch(`/api/owner/revenueflow?range=${range}`)
+                ]);
 
-                const range = timeFilter.toLowerCase().replace(' ', '');
-                const res = await fetch(`/api/owner/ownerstat?range=${range}`);
-                const data = await res.json();
+                const statsData = await statsRes.json();
+                const flowData = await flowRes.json();
 
-                setKpiStats(data.kpiStats || []);
-                setRevenueTrends(data.revenueTrends || []);
+                setKpiStats(statsData.kpiStats || []);
+
+                // Use flowData specifically for the chart
+                setRevenueTrends(flowData.data || []);
+                setChartMode(flowData.groupBy || 'hour');
+
             } catch (err) {
-                console.error('❌ Dashboard fetch failed:', err);
+                console.error('❌ Dashboard data fetch failed:', err);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchDashboard();
-    }, [timeFilter]);
-    useEffect(() => {
-        const fetchRevenueFlow = async () => {
-            try {
-                const range = timeFilter.toLowerCase().replace(' ', '');
-                const res = await fetch(
-                    `/api/owner/revenueflow?range=${range}`
-                );
-                const data = await res.json();
-
-                setRevenueTrends(data.data || []);
-                setChartMode(data.groupBy || 'hour');
-            } catch (err) {
-                console.error('❌ Revenue flow fetch failed', err);
-            }
-        };
-
-        fetchRevenueFlow();
+        fetchDashboardData();
     }, [timeFilter]);
 
 

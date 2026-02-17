@@ -45,16 +45,16 @@ const getLast24HoursStats = async (req, res) => {
             Object.entries(snackCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
         const peakHourRaw =
-    Object.entries(hourCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+            Object.entries(hourCount).sort((a, b) => b[1] - a[1])[0]?.[0];
 
-let peakHour = 'N/A';
+        let peakHour = 'N/A';
 
-if (peakHourRaw !== undefined) {
-    const hour = Number(peakHourRaw);
-    const suffix = hour >= 12 ? 'PM' : 'AM';
-    const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
-    peakHour = `${formattedHour}:00 ${suffix}`;
-}
+        if (peakHourRaw !== undefined) {
+            const hour = Number(peakHourRaw);
+            const suffix = hour >= 12 ? 'PM' : 'AM';
+            const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
+            peakHour = `${formattedHour}:00 ${suffix}`;
+        }
 
 
         res.status(200).json({
@@ -74,11 +74,9 @@ if (peakHourRaw !== undefined) {
 
 const getDeviceOccupancyLast24Hours = async (req, res) => {
     try {
-        const now = new Date();
-        const last24 = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
+        // Query ACTIVE sessions for current occupancy
         const snapshot = await db.collection('sessions')
-            .where('createdAt', '>=', last24.toISOString())
+            .where('status', '==', 'active')
             .get();
 
         let occupiedDevices = 0;
@@ -87,9 +85,13 @@ const getDeviceOccupancyLast24Hours = async (req, res) => {
             const data = doc.data();
             if (!data.devices) return;
 
-            // Sum actual stored device counts
-            Object.values(data.devices).forEach(count => {
-                occupiedDevices += count;
+            // Sum actual stored device counts (Handle both Arrays and Numbers)
+            Object.values(data.devices).forEach(val => {
+                if (Array.isArray(val)) {
+                    occupiedDevices += val.length;
+                } else if (typeof val === 'number') {
+                    occupiedDevices += val;
+                }
             });
         });
 

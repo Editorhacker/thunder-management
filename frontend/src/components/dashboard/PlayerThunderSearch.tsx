@@ -7,7 +7,8 @@ import {
     FaTimes,
     FaUser,
     FaPhoneAlt,
-    FaExclamationTriangle
+    FaExclamationTriangle,
+    FaHistory
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import './PlayerThunderSearch.css';
@@ -30,6 +31,8 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [mounted, setMounted] = useState(false);
+    const [activity, setActivity] = useState<any[]>([]);
+
 
     useEffect(() => {
         setMounted(true);
@@ -45,24 +48,32 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
         setLoading(true);
         setError('');
         setResult(null);
+        setActivity([]); // clear old history
 
         try {
-            const res = await axios.get(
-                `https://thunder-management.onrender.com/api/battles/thunder-player`,
-                {
-                    params: { name, phone }
-                }
+            /* STEP 1 — verify player */
+            const playerRes = await axios.get(
+                "https://thunder-management.onrender.com/api/battles/thunder-player",
+                { params: { name, phone } }
             );
 
-            // Simulating a brief delay for animation effect if API is too fast
-            await new Promise(resolve => setTimeout(resolve, 600));
-            setResult(res.data);
-        } catch {
+            setResult(playerRes.data);
+
+            /* STEP 2 — fetch activity ONLY if player valid */
+            const activityRes = await axios.get(
+                "https://thunder-management.onrender.com/api/battles/player-activity",
+                { params: { phone } }
+            );
+
+            setActivity(activityRes.data);
+
+        } catch (err: any) {
             setError('Player not found or invalid credentials');
         } finally {
             setLoading(false);
         }
     };
+
 
     if (!mounted) return null;
 
@@ -71,182 +82,162 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
             {open && (
                 <motion.div
                     className="modal-backdrop"
-                    initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-                    animate={{ opacity: 1, backdropFilter: 'blur(12px)' }}
-                    exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     onClick={onClose}
                 >
                     <motion.div
                         className="modal-card"
-                        initial={{ opacity: 0, scale: 0.9, y: 40, rotateX: -10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 40, rotateX: -10 }}
-                        transition={{
-                            type: "spring",
-                            stiffness: 300,
-                            damping: 25,
-                            mass: 0.8
-                        }}
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
                         <div className="modal-header">
-                            <motion.div
-                                className="modal-title"
-                                initial={{ x: -20, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: 0.1 }}
-                            >
+                            <div className="modal-title">
                                 <FaBolt className="modal-title-icon" />
                                 <span>Player Search</span>
-                            </motion.div>
-                            <motion.button
-                                className="close-btn"
-                                onClick={onClose}
-                                whileHover={{ scale: 1.1, rotate: 90 }}
-                                whileTap={{ scale: 0.9 }}
-                            >
+                            </div>
+                            <button className="close-btn" onClick={onClose}>
                                 <FaTimes />
-                            </motion.button>
+                            </button>
                         </div>
 
                         <div className="modal-body">
-                            {/* Inputs with Staggered Entry */}
-                            <motion.div
-                                className="input-group"
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: 0.2 }}
-                            >
-                                <input
-                                    className="modal-input"
-                                    placeholder="Enter Player Name"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    autoFocus
-                                />
-                                <div className="input-icon-wrapper">
-                                    <FaUser size={16} />
+                            {/* Search Inputs */}
+                            <div className="search-section">
+                                <div className="input-container">
+                                    <input
+                                        className="modal-input"
+                                        placeholder="Player Name"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <FaUser className="input-icon" size={14} />
                                 </div>
-                            </motion.div>
 
-                            <motion.div
-                                className="input-group"
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: 0.3 }}
-                            >
-                                <input
-                                    className="modal-input"
-                                    placeholder="Enter Phone Number"
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                    type="tel"
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                />
-                                <div className="input-icon-wrapper">
-                                    <FaPhoneAlt size={16} />
+                                <div className="input-container">
+                                    <input
+                                        className="modal-input"
+                                        placeholder="Phone Number"
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        type="tel"
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                    />
+                                    <FaPhoneAlt className="input-icon" size={14} />
                                 </div>
-                            </motion.div>
 
-                            <motion.button
-                                className="modal-search-btn"
-                                onClick={handleSearch}
-                                disabled={loading || !name || !phone}
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: 0.4 }}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                            >
-                                {loading ? (
-                                    <motion.div
-                                        animate={{ rotate: 360 }}
-                                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                                    >
-                                        <FaBolt />
-                                    </motion.div>
-                                ) : (
-                                    <>
-                                        <FaSearch /> Find Player
-                                    </>
-                                )}
-                            </motion.button>
+                                <motion.button
+                                    className="search-btn"
+                                    onClick={handleSearch}
+                                    disabled={loading || !name || !phone}
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                >
+                                    {loading ? (
+                                        <motion.div
+                                            animate={{ rotate: 360 }}
+                                            transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                                        >
+                                            <FaBolt />
+                                        </motion.div>
+                                    ) : (
+                                        <>
+                                            <FaSearch /> Search Player
+                                        </>
+                                    )}
+                                </motion.button>
+                            </div>
 
-                            {/* Dynamic Result Area */}
-                            <AnimatePresence mode="wait">
+                            {/* Error Message */}
+                            <AnimatePresence>
                                 {error && (
                                     <motion.div
-                                        className="error-msg-container"
-                                        initial={{ opacity: 0, height: 0, y: -10 }}
-                                        animate={{ opacity: 1, height: 'auto', y: 0 }}
-                                        exit={{ opacity: 0, height: 0, y: -10 }}
+                                        className="error-message"
+                                        initial={{ opacity: 0, y: -10, height: 0 }}
+                                        animate={{ opacity: 1, y: 0, height: 'auto' }}
+                                        exit={{ opacity: 0, y: -10, height: 0 }}
                                     >
-                                        <FaExclamationTriangle /> {error}
+                                        <FaExclamationTriangle />
+                                        <span>{error}</span>
                                     </motion.div>
                                 )}
+                            </AnimatePresence>
 
+                            {/* Results */}
+                            <AnimatePresence mode="wait">
                                 {result && (
                                     <motion.div
-                                        className="result-container"
-                                        initial={{ opacity: 0, perspective: 1000 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
+                                        className="result-section"
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 20 }}
+                                        transition={{ delay: 0.1 }}
                                     >
-                                        <motion.div
-                                            className="result-card"
-                                            initial={{ rotateX: 90, opacity: 0 }}
-                                            animate={{ rotateX: 0, opacity: 1 }}
-                                            transition={{
-                                                type: "spring",
-                                                stiffness: 200,
-                                                damping: 20,
-                                                delay: 0.1
-                                            }}
-                                        >
-                                            <div className="avatar-wrapper">
-                                                <div className="avatar-ring"></div>
-                                                <div className="result-avatar">
-                                                    <FaUser size={32} color="#fff" />
+                                        <div className="player-card">
+                                            {/* ID Card Header */}
+                                            <div className="player-header">
+                                                <div className="avatar-container">
+                                                    <div className="avatar-circle">
+                                                        <FaUser size={24} />
+                                                    </div>
                                                 </div>
-                                            </div>
-
-                                            <div className="player-info">
-                                                <motion.h2
-                                                    className="player-name"
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ delay: 0.3 }}
-                                                >
-                                                    {result.name}
-                                                </motion.h2>
-                                                <div className="player-phone">
-                                                    <FaPhoneAlt size={10} /> {result.phone}
-                                                </div>
-                                            </div>
-
-                                            <div className="stats-grid">
-                                                <div className="stat-item">
-                                                    <span className="stat-label">Thunder Balance</span>
-                                                    <div className="stat-value-wrapper">
-                                                        <FaBolt color="#fbbf24" size={24} />
-                                                        <motion.span
-                                                            className="stat-value"
-                                                            initial={{ scale: 0.5, opacity: 0 }}
-                                                            animate={{ scale: 1, opacity: 1 }}
-                                                            transition={{
-                                                                type: "spring",
-                                                                stiffness: 400,
-                                                                damping: 15,
-                                                                delay: 0.5
-                                                            }}
-                                                        >
-                                                            {result.thunderCoins}
-                                                        </motion.span>
+                                                <div className="player-details">
+                                                    <h2 className="player-name-text">{result.name}</h2>
+                                                    <div className="player-phone-badge">
+                                                        <FaPhoneAlt size={10} /> {result.phone}
                                                     </div>
                                                 </div>
                                             </div>
-                                        </motion.div>
+
+                                            {/* Large Balance Display */}
+                                            <div className="balance-display">
+                                                <span className="balance-label">Current Balance</span>
+                                                <div className="balance-amount">
+                                                    <FaBolt size={32} />
+                                                    <span>{result.thunderCoins}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Activity Timeline */}
+                                            {activity.length > 0 && (
+                                                <div className="activity-section">
+                                                    <div className="activity-header-text">
+                                                        <FaHistory style={{ marginRight: 8 }} />
+                                                        Recent Activity
+                                                    </div>
+                                                    <div className="activity-timeline">
+                                                        {activity.map((a, idx) => (
+                                                            <motion.div
+                                                                key={`${a.type}-${a.timestamp}-${idx}`}
+                                                                className={`timeline-item ${a.type}`}
+                                                                initial={{ opacity: 0, x: -10 }}
+                                                                animate={{ opacity: 1, x: 0 }}
+                                                                transition={{ delay: 0.2 + (idx * 0.05) }}
+                                                            >
+                                                                <div className="timeline-dot" />
+                                                                <div className="timeline-content">
+                                                                    <div className="timeline-title">{a.title}</div>
+                                                                    <div className="timeline-date">
+                                                                        {new Date(a.date).toLocaleString([], {
+                                                                            month: 'short',
+                                                                            day: 'numeric',
+                                                                            hour: '2-digit',
+                                                                            minute: '2-digit'
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            </motion.div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>

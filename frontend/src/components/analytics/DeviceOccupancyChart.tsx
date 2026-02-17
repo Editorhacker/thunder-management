@@ -98,7 +98,7 @@ const DeviceOccupancyChart: React.FC = () => {
                 borderLeft: '3px solid var(--accent-yellow)',
                 paddingLeft: '12px'
             }}>
-                Device Occupancy (Last 24 hrs)
+                Current Device Occupancy
             </h3>
 
             <div style={{ flex: 1 }}>

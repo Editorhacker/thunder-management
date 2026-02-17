@@ -87,7 +87,16 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     // ------------------- State -------------------
     const [activeTab, setActiveTab] = useState<'extend' | 'addMember' | 'snacks' | 'split'>('extend');
 
-    const [payingNow, setPayingNow] = useState(0);
+    // Replaced single payingNow state with specific counts
+    const [cashCount, setCashCount] = useState(0);
+    const [onlineCount, setOnlineCount] = useState(0);
+
+    // Derived total people paying now
+    const payingNow = cashCount + onlineCount;
+
+    const [customPayAmount, setCustomPayAmount] = useState(0);
+    const [paymentMode, setPaymentMode] = useState<'equal' | 'custom'>('equal');
+
 
     // Feature 1: Extend Time
     const [extraMinutes, setExtraMinutes] = useState(0);
@@ -163,8 +172,39 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     // Actually we trust session.price.
 
     // 2. Calculate New Total Scenario
-    const totalPeople = (session.peopleCount || 1) + (newMember.peopleCount || 0);
+    /* =========================================================
+    JOIN + EXTEND DELTA BILLING (CORRECT GAMING CAFE LOGIC)
+    ========================================================= */
+
+    // total people after adding members
+    const addedPeople = newMember.peopleCount || 0;
+    const totalPeople = (session.peopleCount || 1) + addedPeople;
+
+    // duration after extension
     const newDuration = (session.duration || 0) + (extraMinutes / 60);
+
+    /* ---------- STEP 1: REBUILD OLD PRICE WITH NEW PEOPLE ---------- */
+    // What the total SHOULD have been if new players existed from start
+    const recalculatedOldTotal = calculateSessionPrice(
+        session.duration || 0,
+        totalPeople,
+        mergedDevices,
+        new Date(session.startTime)
+    );
+
+    /* ---------- STEP 2: JOIN COST (retroactive billing) ---------- */
+    const originalStoredTotal = session.price;
+    const joinCost = Math.max(0, recalculatedOldTotal - originalStoredTotal);
+
+    /* ---------- STEP 3: EXTENSION COST ---------- */
+    const recalculatedNewTotal = calculateSessionPrice(
+        newDuration,
+        totalPeople,
+        mergedDevices,
+        new Date(session.startTime)
+    );
+
+
 
     // Robustness: If remainingPeople is missing OR equals totalPeople despite payment, infer it
     let currentRemainingPeople = session.remainingPeople ?? totalPeople;
@@ -182,28 +222,33 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     // Calculate the cost of EXTRA time for REMAINING people
     // CRITICAL: Use Delta Pricing to avoid re-triggering "First Hour" base costs
-    const priceWithTotalTime = calculateSessionPrice(
-        newDuration,
-        currentRemainingPeople,
-        mergedDevices,
-        new Date()
-    );
+    // const priceWithTotalTime = calculateSessionPrice(
+    //     newDuration,
+    //     currentRemainingPeople,
+    //     mergedDevices,
+    //     new Date()
+    // );
 
-    const priceWithOriginalTime = calculateSessionPrice(
-        session.duration || 0,
-        currentRemainingPeople,
-        mergedDevices,
-        new Date()
-    );
+    // const priceWithOriginalTime = calculateSessionPrice(
+    //     session.duration || 0,
+    //     currentRemainingPeople,
+    //     mergedDevices,
+    //     new Date()
+    // );
 
-    const extraTimeCost = Math.max(0, priceWithTotalTime - priceWithOriginalTime);
 
+    const extraTimeCost = Math.max(0, recalculatedNewTotal - recalculatedOldTotal);
     // Total new charges = extra time for remaining people + snacks
-    const chargesAsString = extraTimeCost + newSnackCost;
+
+    /* ---------- STEP 4: FINAL NEW CHARGES ---------- */
+    const chargesAsString = joinCost + extraTimeCost + newSnackCost;
 
     // CRITICAL: finalBill should be the TOTAL bill (session.price + new charges)
     // const finalBill = session.price + chargesAsString;
-    const totalToPay = session.price + chargesAsString;
+
+
+    /* ---------- TOTAL SESSION VALUE AFTER UPDATE ---------- */
+    const totalToPay = originalStoredTotal + chargesAsString;
 
     // Track actual amounts paid, not just people count
     const currentRemainingAmount = session.remainingAmount ?? session.price;
@@ -224,10 +269,26 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     const perPersonShare = totalPendingToPay / shareDivisor;
 
     // Amount this payment will cover
-    const payNowAmount = payingNow * perPersonShare;
+    let payNowAmount = 0;
 
-    // Remaining amount is simply pending minus what is being paid now
+    if (paymentMode === 'equal') {
+        payNowAmount = payingNow * perPersonShare;
+    } else {
+        payNowAmount = Math.min(customPayAmount, totalPendingToPay);
+    }
+
     const newRemainingAmount = Math.max(0, totalPendingToPay - payNowAmount);
+
+    const newRemainingPeopleAfterPay =
+        paymentMode === 'equal'
+            ? Math.max(0, currentRemainingPeople - payingNow)
+            : Math.max(1, currentRemainingPeople - 1); // birthday guy leaves
+
+    const newPerPersonShare =
+        newRemainingPeopleAfterPay > 0
+            ? newRemainingAmount / newRemainingPeopleAfterPay
+            : 0;
+
 
     // ------------------- Handlers -------------------
 
@@ -255,7 +316,8 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         try {
             // Re-calculate payload values
             const extraHours = extraMinutes / 60;
-            const charges = extraTimeCost; // Extra time cost for remaining people only
+            const charges = joinCost + extraTimeCost;
+            // Extra time cost for remaining people only
             const memberCount = newMember.peopleCount;
 
             const payload = {
@@ -264,7 +326,11 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                 newMember: memberCount > 0 ? newMember : null,
                 snacks: newSnackItems,
                 paidNow: payNowAmount,
-                payingPeopleNow: payingNow
+                payingPeopleNow: paymentMode === 'equal' ? payingNow : 1,
+                paymentMode,
+                // Add split counts to payload
+                cashCount,
+                onlineCount
             };
 
             await axios.post(
@@ -370,13 +436,13 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                 className="item-grid"
                             >
                                 <input
-                                    placeholder="New Player Name"
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors mb-4"
+                                    placeholder=" New Player Name"
+                                    className="w-full h-10 bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors mb-4"
                                     value={newMember.name}
                                     onChange={e => setNewMember({ ...newMember, name: e.target.value })}
                                 />
 
-                                <div className="minimal-counter">
+                                <div className="minimal-counter ">
                                     <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: Math.max(0, p.peopleCount - 1) }))}>
                                         <FaMinus size={12} />
                                     </button>
@@ -471,24 +537,84 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                         </span>
                                     </div>
 
-                                    {/* <div className="invoice-row">
-                                        <span className="invoice-label">People Remaining</span>
-                                        <span className="invoice-val">{newRemainingPeople}</span>
-                                    </div> */}
-
                                     <div className="invoice-row" style={{ marginTop: '0.5rem', borderTop: '1px dashed var(--border-subtle)', paddingTop: '0.75rem' }}>
-                                        <span className="invoice-label">People Paying Now</span>
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            max={newRemainingPeople}
-                                            value={payingNow}
-                                            onChange={e => setPayingNow(Number(e.target.value))}
+                                        <span className="invoice-label">Payment Type</span>
+                                        <select
                                             className="invoice-field"
-                                        />
+                                            value={paymentMode}
+                                            onChange={e => setPaymentMode(e.target.value as any)}
+                                        >
+                                            <option value="equal">Equal Split</option>
+                                            <option value="custom">Custom Amount</option>
+                                        </select>
                                     </div>
 
-                                    <div className="invoice-row">
+                                    {paymentMode === 'equal' && (
+                                        <div style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '1fr 1fr',
+                                            gap: '12px',
+                                            marginTop: '12px',
+                                            marginBottom: '12px'
+                                        }}>
+                                            <div style={{
+                                                background: 'rgba(74, 222, 128, 0.05)',
+                                                border: '1px solid rgba(74, 222, 128, 0.1)',
+                                                padding: '12px',
+                                                borderRadius: '12px'
+                                            }}>
+                                                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#4ade80', marginBottom: '8px', textTransform: 'uppercase' }}>CASH Payers</div>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    max={newRemainingPeople}
+                                                    value={cashCount}
+                                                    onChange={e => {
+                                                        const val = Math.max(0, Number(e.target.value));
+                                                        setCashCount(val);
+                                                        // Ensure logical consistency if needed, but allowing free input is often easier
+                                                    }}
+                                                    className="invoice-field"
+                                                    style={{ width: '100%', textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }}
+                                                />
+                                            </div>
+                                            <div style={{
+                                                background: 'rgba(59, 130, 246, 0.05)',
+                                                border: '1px solid rgba(59, 130, 246, 0.1)',
+                                                padding: '12px',
+                                                borderRadius: '12px'
+                                            }}>
+                                                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#60a5fa', marginBottom: '8px', textTransform: 'uppercase' }}>ONLINE Payers</div>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    max={newRemainingPeople}
+                                                    value={onlineCount}
+                                                    onChange={e => {
+                                                        const val = Math.max(0, Number(e.target.value));
+                                                        setOnlineCount(val);
+                                                    }}
+                                                    className="invoice-field"
+                                                    style={{ width: '100%', textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {paymentMode === 'custom' && (
+                                        <div className="invoice-row" style={{ marginTop: '10px' }}>
+                                            <span className="invoice-label">Enter Amount</span>
+                                            <input
+                                                type="number"
+                                                className="invoice-field"
+                                                value={customPayAmount}
+                                                onChange={e => setCustomPayAmount(Number(e.target.value))}
+                                            />
+                                        </div>
+                                    )}
+
+
+                                    <div className="invoice-row" style={{ marginTop: '10px' }}>
                                         <span className="invoice-label">Pay Now Amount</span>
                                         <span className="invoice-val" style={{ color: 'var(--accent-primary)' }}>
                                             ₹{payNowAmount.toFixed(0)}

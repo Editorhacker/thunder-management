@@ -69,7 +69,7 @@ const createSession = async (req, res) => {
     try {
         const {
             customerName, contactNumber, duration,
-            peopleCount, snacks, devices, price, snackDetails, thunderCoinsUsed = 0
+            peopleCount, snacks, devices, price, snackDetails, thunderCoinsUsed = 0, gameName
         } = req.body;
 
         // Deduct snacks if provided
@@ -144,9 +144,11 @@ const createSession = async (req, res) => {
         // 3. Create session
         const newSession = {
             customerName,
+            customerNameLower: customerName.toLowerCase(),
             contactNumber,
             duration: durationVal,
             peopleCount: peopleVal,
+            gameName,
             snacks: snacks || '',
             devices: devicesVal, // Store as is (arrays)
             price: finalPrice,
@@ -233,6 +235,7 @@ const getActiveSessions = async (req, res) => {
                 duration: data.duration,     // hours
                 peopleCount: data.peopleCount,
                 price: data.price,
+                gameName: data.gameName,
                 paidAmount: data.paidAmount || 0,
                 remainingPeople: data.remainingPeople ?? data.peopleCount,
                 remainingAmount: data.remainingAmount ?? data.price,
@@ -339,6 +342,7 @@ const createBooking = async (req, res) => {
 
         const newBooking = {
             customerName,
+            customerNameLower: customerName.toLowerCase(),
             contactNumber: contactNumber || '',
             bookingTime,
             bookingEndTime: bookingEndTime || null,
@@ -508,13 +512,12 @@ const getDeviceAvailabilityForTime = async (req, res) => {
 const updateSession = async (req, res) => {
     try {
         const { id } = req.params;
-        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks } = req.body;
+        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks, paymentMode, cashCount, onlineCount } = req.body;
 
         // Deduct snacks for update
         if (snacks && Array.isArray(snacks) && snacks.length > 0) {
             await snackService.deductStock(snacks);
         }
-
 
         const ref = db.collection('sessions').doc(id);
         const snap = await ref.get();
@@ -533,9 +536,27 @@ const updateSession = async (req, res) => {
         const currentPayment = paidNow || 0;
         const newTotalPaid = alreadyPaidAmount + currentPayment;
 
+        // Calculate split amounts
+        let newCashAmount = 0;
+        let newOnlineAmount = 0;
+
+        if (paymentMode === 'equal' && currentPayment > 0) {
+            const totalPayers = (cashCount || 0) + (onlineCount || 0);
+            if (totalPayers > 0) {
+                const amountPerPerson = currentPayment / totalPayers;
+                newCashAmount = (cashCount || 0) * amountPerPerson;
+                newOnlineAmount = (onlineCount || 0) * amountPerPerson;
+            }
+        } else {
+            // Fallback for custom or direct payments if cashCount/onlineCount missing
+            // If we don't know the split, we could default to cash or just not update split fields
+            // For now, let's assume if it's not equal split with counts, we rely on existing logic (or add fields later)
+        }
+
         // Remaining amount is simply: Total - What's been paid
         const remainingAmount = Math.max(0, totalPrice - newTotalPaid);
 
+        let finalRemainingPeople = 0;
 
         // ---- Safe device merge ----
         let updatedDevices = { ...data.devices };
@@ -546,29 +567,32 @@ const updateSession = async (req, res) => {
                 const existingVal = updatedDevices[k];
                 const newVal = newMember.devices[k];
 
-                // Convert existing to array if number (legacy)
                 const existingArr = Array.isArray(existingVal) ? existingVal : (typeof existingVal === 'number' && existingVal > 0 ? [existingVal] : []);
-                // Convert new to array if number (legacy)
                 const newArr = Array.isArray(newVal) ? newVal : (typeof newVal === 'number' && newVal > 0 ? [newVal] : []);
 
-                // Merge and unique
                 const merged = [...new Set([...existingArr, ...newArr])].sort((a, b) => a - b);
-
                 updatedDevices[k] = merged;
             });
-
             addedPeople = newMember.peopleCount || 0;
         }
 
-        // Calculate remaining people correctly
         const newPeopleCount = data.peopleCount + addedPeople;
-
-        // Get current remaining people (or fallback to current people count)
         const currentRemainingPeople = data.remainingPeople ?? data.peopleCount;
 
-        // Subtract people who just paid, add new members
-        const peopleWhoPaid = payingPeopleNow || 0;
-        const finalRemainingPeople = Math.max(0, currentRemainingPeople - peopleWhoPaid + addedPeople);
+        let peopleLeaving = 0;
+
+        if (paymentMode === "equal") {
+            peopleLeaving = payingPeopleNow || 0;
+        } else if (paymentMode === "custom") {
+            peopleLeaving = currentPayment > 0 ? 1 : 0;
+        }
+
+        finalRemainingPeople = Math.max(0, currentRemainingPeople - peopleLeaving + addedPeople);
+
+        // If session fully paid → zero remaining people
+        if (remainingAmount === 0) {
+            finalRemainingPeople = 0;
+        }
 
         // ---- Final update ----
         await ref.update({
@@ -576,9 +600,14 @@ const updateSession = async (req, res) => {
             peopleCount: newPeopleCount,
             price: totalPrice,
             paidAmount: newTotalPaid,
-            remainingPeople: finalRemainingPeople,  // Correctly calculated
+            remainingPeople: finalRemainingPeople,
             remainingAmount,
             devices: updatedDevices,
+
+            // Update cash and online split totals
+            cash: (data.cash || 0) + newCashAmount,
+            online: (data.online || 0) + newOnlineAmount,
+
             members: newMember
                 ? [...(data.members || []), newMember]
                 : data.members || [],
@@ -779,6 +808,7 @@ module.exports = {
     getActiveSessions,
     createBooking,
     getUpcomingBookings,
+    exportSessions,
     getDeviceAvailability,
     getDeviceAvailabilityForTime,
     updateSession,
@@ -786,6 +816,5 @@ module.exports = {
     deleteSession,
     deleteBooking,
     convertBookingsToSessions,
-    autoConvertBookings,
-    exportSessions
+    autoConvertBookings
 };

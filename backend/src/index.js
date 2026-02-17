@@ -18,6 +18,7 @@ app.use(cors({
 app.use(express.json());
 
 const snackRoutes = require('./routes/snackRoutes');
+const searchCustomer = require('./routes/customerRoutes');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -29,6 +30,8 @@ app.use('/api/owner', require('./routes/ownerRoute'));
 app.use('/api/management', require('./routes/managementRoutes'));
 app.use('/api/subscription', require('./routes/subscriptionRoute'));
 app.use('/api/snacks', snackRoutes);
+
+app.use('/api/customers', searchCustomer);
 
 
 

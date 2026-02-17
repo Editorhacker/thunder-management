@@ -33,8 +33,10 @@ interface FormState {
     contactNumber: string;
     duration: string;        // HH:MM
     peopleCount: number;
+    gameName:string;
     snacks: string;
     devices: DeviceCounts;
+   
 }
 
 interface Props {
@@ -48,7 +50,10 @@ interface ThunderPlayer {
     createdAt?: string;
     updatedAt?: string;
 }
-
+interface SearchCustomer {
+    name: string;
+    phone: string;
+}
 
 import DeviceDropdown from './DeviceDropdown';
 
@@ -65,6 +70,9 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const [coinsApplied, setCoinsApplied] = useState(false);
     const [coinDiscount, setCoinDiscount] = useState(0);
     const coinsUsed = coinsApplied ? (coinDiscount / 20) * 50 : 0;
+    const [searchResults, setSearchResults] = useState<SearchCustomer[]>([]);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
 
 
 
@@ -74,6 +82,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         contactNumber: '',
         duration: "00:00",
         peopleCount: 1,
+        gameName: "",
         snacks: '',
         devices: {
             ps: [],
@@ -170,6 +179,49 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     }, [form.customerName, form.contactNumber]);
 
+    useEffect(() => {
+
+        if (!form.customerName || form.customerName.length < 2) {
+            setSearchResults([]);
+            setShowDropdown(false);
+            return;
+        }
+
+        let cancel = false;
+
+        const timer = setTimeout(async () => {
+            try {
+                setIsSearching(true);
+
+                const res = await axios.get(
+                    "https://thunder-management.onrender.com/api/customers/search",
+                    { params: { name: form.customerName.trim() } }
+                );
+
+                if (!cancel) {
+                    setSearchResults(res.data);
+                    setShowDropdown(res.data.length > 0);
+                }
+
+            } catch {
+                if (!cancel) setSearchResults([]);
+            } finally {
+                if (!cancel) setIsSearching(false);
+            }
+        }, 400);
+
+        return () => {
+            cancel = true;
+            clearTimeout(timer);
+        };
+
+    }, [form.customerName]);
+
+    const selectCustomer = (customer: SearchCustomer) => {
+        updateField("customerName", customer.name);
+        updateField("contactNumber", customer.phone);
+        setShowDropdown(false);
+    };
 
 
     const [snackCost, setSnackCost] = useState<number>(0);
@@ -224,6 +276,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 contactNumber: '',
                 duration: "00:00",
                 peopleCount: 1,
+                gameName: "",
                 snacks: '',
                 devices: { ps: [], pc: [], vr: [], wheel: [], metabat: [] }
             });
@@ -337,18 +390,41 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                             </button>
                         </div>
 
-                        <div className="content-wrapper custom-scrollbar" style={{ paddingTop: '1rem', overflowY: 'auto', maxHeight: '80vh' }}>
+                        <div className="content-wrapper custom-scrollbar" style={{  overflowY: 'auto', maxHeight: '80vh' }}>
                             {/* Input Grid */}
                             <div className="input-grid">
-                                <div className="field-group">
+                                <div className="field-group" style={{ position: "relative" }}>
                                     <label className="field-label">Customer Name</label>
+
                                     <input
                                         className="field-input"
                                         placeholder="Enter name"
                                         value={form.customerName}
                                         onChange={e => updateField('customerName', e.target.value)}
+                                        onFocus={() => searchResults.length && setShowDropdown(true)}
+                                        onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                                     />
+
+                                    {showDropdown && (
+                                        <div className="player-dropdown">
+                                            {isSearching && <div className="dropdown-item">Searching...</div>}
+
+                                            {searchResults.map((c, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="dropdown-item"
+                                                    onMouseDown={() => selectCustomer(c)}
+                                                >
+                                                    <div>{c.name}</div>
+                                                    <div style={{ fontSize: 12, opacity: 0.7 }}>
+                                                        {c.phone}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
+
 
                                 <div className="field-group">
                                     <label className="field-label">Contact</label>
@@ -469,6 +545,18 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
                                 </div>
 
+                                    <div className="field-group" style={{ position: "relative" }}>
+                                    <label className="field-label">Game Name</label>
+
+                                    <input
+                                        className="field-input"
+                                        type = "text"
+                                        placeholder="Game Name"
+                                        value={form.gameName}
+                                        onChange={e => updateField('gameName', e.target.value)}
+                                    />
+
+                                    </div>
 
                                 <div className="field-group" style={{ gridColumn: '1 / -1' }}>
                                     <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Snacks / Combo</label>

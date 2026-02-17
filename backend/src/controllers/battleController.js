@@ -9,6 +9,12 @@ const validatePlayer = (player) => {
     return null;
 };
 
+const makeSearchablePlayer = (p) => ({
+    name: p.name,
+    nameLower: p.name.toLowerCase(),
+    phone: p.phone
+});
+
 // Start a new Battle
 exports.startBattle = async (req, res) => {
     try {
@@ -56,6 +62,15 @@ exports.startBattle = async (req, res) => {
             crownHolder: p1,
             challenger: p2,
             config: battleConfig,
+            players: [
+        makeSearchablePlayer(p1),
+        makeSearchablePlayer(p2)
+    ],
+ playerSearch: [
+        p1.name.toLowerCase(),
+        p2.name.toLowerCase()
+    ],
+
             startTime: new Date().toISOString(),
             status: 'active',
             createdAt: new Date().toISOString()
