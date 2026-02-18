@@ -32,14 +32,14 @@ const PlayersBattleModal = ({ isOpen, onClose }: Props) => {
     // --- State ---
     const [crownHolder, setCrownHolder] = useState<PlayerInfo>({ name: '', phone: '', errors: {} });
     const [challenger, setChallenger] = useState<PlayerInfo>({ name: '', phone: '', errors: {} });
-    const [searchResultsP1, setSearchResultsP1] = useState<{name:string,phone:string}[]>([]);
-const [searchResultsP2, setSearchResultsP2] = useState<{name:string,phone:string}[]>([]);
+    const [searchResultsP1, setSearchResultsP1] = useState<{ name: string, phone: string }[]>([]);
+    const [searchResultsP2, setSearchResultsP2] = useState<{ name: string, phone: string }[]>([]);
 
-const [showDropdownP1, setShowDropdownP1] = useState(false);
-const [showDropdownP2, setShowDropdownP2] = useState(false);
+    const [showDropdownP1, setShowDropdownP1] = useState(false);
+    const [showDropdownP2, setShowDropdownP2] = useState(false);
 
-const [isSearchingP1, setIsSearchingP1] = useState(false);
-const [isSearchingP2, setIsSearchingP2] = useState(false);
+    const [isSearchingP1, setIsSearchingP1] = useState(false);
+    const [isSearchingP2, setIsSearchingP2] = useState(false);
 
 
     // Config State
@@ -110,92 +110,92 @@ const [isSearchingP2, setIsSearchingP2] = useState(false);
         }
     };
 
-useEffect(() => {
-    if (!crownHolder.name || crownHolder.name.length < 2) {
-        setSearchResultsP1([]);
+    useEffect(() => {
+        if (!crownHolder.name || crownHolder.name.length < 2) {
+            setSearchResultsP1([]);
+            setShowDropdownP1(false);
+            return;
+        }
+
+        let cancel = false;
+
+        const timer = setTimeout(async () => {
+            try {
+                setIsSearchingP1(true);
+
+                const res = await axios.get(
+                    "https://thunder-management.onrender.com/api/customers/search",
+                    { params: { name: crownHolder.name.trim() } }
+                );
+
+                if (!cancel) {
+                    setSearchResultsP1(res.data);
+                    setShowDropdownP1(res.data.length > 0);
+                }
+
+            } catch {
+                if (!cancel) setSearchResultsP1([]);
+            } finally {
+                if (!cancel) setIsSearchingP1(false);
+            }
+        }, 400);
+
+        return () => { cancel = true; clearTimeout(timer); };
+
+    }, [crownHolder.name]);
+
+    useEffect(() => {
+        if (!challenger.name || challenger.name.length < 2) {
+            setSearchResultsP2([]);
+            setShowDropdownP2(false);
+            return;
+        }
+
+        let cancel = false;
+
+        const timer = setTimeout(async () => {
+            try {
+                setIsSearchingP2(true);
+
+                const res = await axios.get(
+                    "https://thunder-management.onrender.com/api/customers/search",
+                    { params: { name: challenger.name.trim() } }
+                );
+
+                if (!cancel) {
+                    setSearchResultsP2(res.data);
+                    setShowDropdownP2(res.data.length > 0);
+                }
+
+            } catch {
+                if (!cancel) setSearchResultsP2([]);
+            } finally {
+                if (!cancel) setIsSearchingP2(false);
+            }
+        }, 400);
+
+        return () => { cancel = true; clearTimeout(timer); };
+
+    }, [challenger.name]);
+    const selectPlayer1 = (c: { name: string, phone: string }) => {
+        setCrownHolder(prev => ({
+            ...prev,
+            name: c.name,
+            phone: c.phone,
+            errors: {}
+        }));
         setShowDropdownP1(false);
-        return;
-    }
+    };
 
-    let cancel = false;
-
-    const timer = setTimeout(async () => {
-        try {
-            setIsSearchingP1(true);
-
-            const res = await axios.get(
-                "https://thunder-management.onrender.com/api/customers/search",
-                { params: { name: crownHolder.name.trim() } }
-            );
-
-            if (!cancel) {
-                setSearchResultsP1(res.data);
-                setShowDropdownP1(res.data.length > 0);
-            }
-
-        } catch {
-            if (!cancel) setSearchResultsP1([]);
-        } finally {
-            if (!cancel) setIsSearchingP1(false);
-        }
-    }, 400);
-
-    return () => { cancel = true; clearTimeout(timer); };
-
-}, [crownHolder.name]);
-
-useEffect(() => {
-    if (!challenger.name || challenger.name.length < 2) {
-        setSearchResultsP2([]);
+    const selectPlayer2 = (c: { name: string, phone: string }) => {
+        setChallenger(prev => ({
+            ...prev,
+            name: c.name,
+            phone: c.phone,
+            errors: {}
+        }));
         setShowDropdownP2(false);
-        return;
-    }
-
-    let cancel = false;
-
-    const timer = setTimeout(async () => {
-        try {
-            setIsSearchingP2(true);
-
-            const res = await axios.get(
-                "https://thunder-management.onrender.com/api/customers/search",
-                { params: { name: challenger.name.trim() } }
-            );
-
-            if (!cancel) {
-                setSearchResultsP2(res.data);
-                setShowDropdownP2(res.data.length > 0);
-            }
-
-        } catch {
-            if (!cancel) setSearchResultsP2([]);
-        } finally {
-            if (!cancel) setIsSearchingP2(false);
-        }
-    }, 400);
-
-    return () => { cancel = true; clearTimeout(timer); };
-
-}, [challenger.name]);
-const selectPlayer1 = (c:{name:string,phone:string}) => {
-    setCrownHolder(prev => ({
-        ...prev,
-        name: c.name,
-        phone: c.phone,
-        errors: {}
-    }));
-    setShowDropdownP1(false);
-};
-
-const selectPlayer2 = (c:{name:string,phone:string}) => {
-    setChallenger(prev => ({
-        ...prev,
-        name: c.name,
-        phone: c.phone,
-        errors: {}
-    }));
-    setShowDropdownP2(false);
-};
+    };
 
 
     // Config Handlers
@@ -319,32 +319,32 @@ const selectPlayer2 = (c:{name:string,phone:string}) => {
                                     <FaCrown /> Crown Holder (Player 1)
                                 </div>
 
-                                <div className="input-group" style={{position:"relative"}}>
-    <label className="input-label">Full Name</label>
-    <input
-        className={`battle-input ${crownHolder.errors.name ? 'error' : ''}`}
-        placeholder="e.g. Rahul Sharma"
-        value={crownHolder.name}
-        onChange={(e) => handlePlayerChange('crown', 'name', e.target.value)}
-        onBlur={() => {handleBlur('crown', 'name'); setTimeout(()=>setShowDropdownP1(false),150)}}
-        onFocus={()=> searchResultsP1.length && setShowDropdownP1(true)}
-    />
+                                <div className="input-group" style={{ position: "relative" }}>
+                                    <label className="input-label">Full Name</label>
+                                    <input
+                                        className={`battle-input ${crownHolder.errors.name ? 'error' : ''}`}
+                                        placeholder="e.g. Rahul Sharma"
+                                        value={crownHolder.name}
+                                        onChange={(e) => handlePlayerChange('crown', 'name', e.target.value)}
+                                        onBlur={() => { handleBlur('crown', 'name'); setTimeout(() => setShowDropdownP1(false), 150) }}
+                                        onFocus={() => searchResultsP1.length && setShowDropdownP1(true)}
+                                    />
 
-    {showDropdownP1 && (
-        <div className="player-dropdown">
-            {isSearchingP1 && <div className="dropdown-item">Searching...</div>}
+                                    {showDropdownP1 && (
+                                        <div className="player-dropdown">
+                                            {isSearchingP1 && <div className="dropdown-item">Searching...</div>}
 
-            {searchResultsP1.map((c,i)=>(
-                <div key={i} className="dropdown-item" onMouseDown={()=>selectPlayer1(c)}>
-                    <div>{c.name}</div>
-                    <div style={{fontSize:12,opacity:.7}}>{c.phone}</div>
-                </div>
-            ))}
-        </div>
-    )}
+                                            {searchResultsP1.map((c, i) => (
+                                                <div key={i} className="dropdown-item" onMouseDown={() => selectPlayer1(c)}>
+                                                    <div>{c.name}</div>
+                                                    <div style={{ fontSize: 12, opacity: .7 }}>{c.phone}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
 
-    {crownHolder.errors.name && <span className="input-error-msg">{crownHolder.errors.name}</span>}
-</div>
+                                    {crownHolder.errors.name && <span className="input-error-msg">{crownHolder.errors.name}</span>}
+                                </div>
 
 
                                 <div className="input-group">
@@ -385,32 +385,32 @@ const selectPlayer2 = (c:{name:string,phone:string}) => {
                                     <FaGamepad /> Challenger (Player 2)
                                 </div>
 
-                                <div className="input-group" style={{position:"relative"}}>
-    <label className="input-label">Full Name</label>
-    <input
-        className={`battle-input ${challenger.errors.name ? 'error' : ''}`}
-        placeholder="e.g. Vikram Singh"
-        value={challenger.name}
-        onChange={(e) => handlePlayerChange('challenger', 'name', e.target.value)}
-        onBlur={() => {handleBlur('challenger', 'name'); setTimeout(()=>setShowDropdownP2(false),150)}}
-        onFocus={()=> searchResultsP2.length && setShowDropdownP2(true)}
-    />
+                                <div className="input-group" style={{ position: "relative" }}>
+                                    <label className="input-label">Full Name</label>
+                                    <input
+                                        className={`battle-input ${challenger.errors.name ? 'error' : ''}`}
+                                        placeholder="e.g. Vikram Singh"
+                                        value={challenger.name}
+                                        onChange={(e) => handlePlayerChange('challenger', 'name', e.target.value)}
+                                        onBlur={() => { handleBlur('challenger', 'name'); setTimeout(() => setShowDropdownP2(false), 150) }}
+                                        onFocus={() => searchResultsP2.length && setShowDropdownP2(true)}
+                                    />
 
-    {showDropdownP2 && (
-        <div className="player-dropdown">
-            {isSearchingP2 && <div className="dropdown-item">Searching...</div>}
+                                    {showDropdownP2 && (
+                                        <div className="player-dropdown">
+                                            {isSearchingP2 && <div className="dropdown-item">Searching...</div>}
 
-            {searchResultsP2.map((c,i)=>(
-                <div key={i} className="dropdown-item" onMouseDown={()=>selectPlayer2(c)}>
-                    <div>{c.name}</div>
-                    <div style={{fontSize:12,opacity:.7}}>{c.phone}</div>
-                </div>
-            ))}
-        </div>
-    )}
+                                            {searchResultsP2.map((c, i) => (
+                                                <div key={i} className="dropdown-item" onMouseDown={() => selectPlayer2(c)}>
+                                                    <div>{c.name}</div>
+                                                    <div style={{ fontSize: 12, opacity: .7 }}>{c.phone}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
 
-    {challenger.errors.name && <span className="input-error-msg">{challenger.errors.name}</span>}
-</div>
+                                    {challenger.errors.name && <span className="input-error-msg">{challenger.errors.name}</span>}
+                                </div>
 
 
                                 <div className="input-group">

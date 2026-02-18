@@ -33,10 +33,10 @@ interface FormState {
     contactNumber: string;
     duration: string;        // HH:MM
     peopleCount: number;
-    gameName:string;
+    gameName: string;
     snacks: string;
     devices: DeviceCounts;
-   
+
 }
 
 interface Props {
@@ -390,7 +390,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                             </button>
                         </div>
 
-                        <div className="content-wrapper custom-scrollbar" style={{  overflowY: 'auto', maxHeight: '80vh' }}>
+                        <div className="content-wrapper custom-scrollbar" style={{ overflowY: 'auto', maxHeight: '80vh' }}>
                             {/* Input Grid */}
                             <div className="input-grid">
                                 <div className="field-group" style={{ position: "relative" }}>
@@ -545,18 +545,18 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
                                 </div>
 
-                                    <div className="field-group" style={{ position: "relative" }}>
+                                <div className="field-group" style={{ position: "relative" }}>
                                     <label className="field-label">Game Name</label>
 
                                     <input
                                         className="field-input"
-                                        type = "text"
+                                        type="text"
                                         placeholder="Game Name"
                                         value={form.gameName}
                                         onChange={e => updateField('gameName', e.target.value)}
                                     />
 
-                                    </div>
+                                </div>
 
                                 <div className="field-group" style={{ gridColumn: '1 / -1' }}>
                                     <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Snacks / Combo</label>

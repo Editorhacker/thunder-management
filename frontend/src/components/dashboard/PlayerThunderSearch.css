@@ -351,3 +351,31 @@
     font-size: 0.75rem;
     color: rgba(156, 163, 175, 0.6);
 }
+.player-dropdown{
+    position:absolute;
+    top:100%;
+    left:0;
+    right:0;
+    background:#0f172a;
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px;
+    margin-top:6px;
+    max-height:220px;
+    overflow-y:auto;
+    z-index:20;
+}
+
+.dropdown-item{
+    padding:10px 12px;
+    cursor:pointer;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+}
+
+.dropdown-item:hover{
+    background:rgba(255,255,255,0.08);
+}
+
+.dropdown-phone{
+    font-size:12px;
+    opacity:.6;
+}

@@ -23,6 +23,11 @@ interface Props {
     open: boolean;
     onClose: () => void;
 }
+interface SearchCustomer {
+    name: string;
+    phone: string;
+}
+
 
 const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
     const [name, setName] = useState('');
@@ -32,14 +37,30 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
     const [error, setError] = useState('');
     const [mounted, setMounted] = useState(false);
     const [activity, setActivity] = useState<any[]>([]);
-
+    const [searchResults, setSearchResults] = useState<SearchCustomer[]>([]);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    const [manualSelect, setManualSelect] = useState(false);
 
     useEffect(() => {
         setMounted(true);
         return () => setMounted(false);
     }, []);
 
+    useEffect(() => {
+
+        if (!manualSelect) return;
+        if (!name || !phone) return;
+
+        handleSearch();
+        setManualSelect(false);
+
+    }, [phone]);
+
     const handleSearch = async () => {
+
+
+
         if (!name.trim() || !phone.trim()) {
             setError('Please enter both name and phone number');
             return;
@@ -67,11 +88,57 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
 
             setActivity(activityRes.data);
 
+
         } catch (err: any) {
             setError('Player not found or invalid credentials');
         } finally {
             setLoading(false);
         }
+    };
+
+    useEffect(() => {
+
+        if (!name || name.length < 2) {
+            setSearchResults([]);
+            setShowDropdown(false);
+            return;
+        }
+
+        let cancel = false;
+
+        const timer = setTimeout(async () => {
+            try {
+                setIsSearching(true);
+
+                const res = await axios.get(
+                    "https://thunder-management.onrender.com/api/customers/search",
+                    { params: { name: name.trim() } }
+                );
+
+                if (!cancel) {
+                    setSearchResults(res.data);
+                    setShowDropdown(res.data.length > 0);
+                }
+
+            } catch {
+                if (!cancel) setSearchResults([]);
+            } finally {
+                if (!cancel) setIsSearching(false);
+            }
+        }, 400);
+
+        return () => {
+            cancel = true;
+            clearTimeout(timer);
+        };
+
+    }, [name]);
+
+    const selectCustomer = (customer: SearchCustomer) => {
+        setManualSelect(true);
+        setName(customer.name);
+        setPhone(customer.phone);
+        setShowDropdown(false);
     };
 
 
@@ -109,16 +176,36 @@ const PlayerThunderSearchModal = ({ open, onClose }: Props) => {
                         <div className="modal-body">
                             {/* Search Inputs */}
                             <div className="search-section">
-                                <div className="input-container">
+                                <div className="input-container" style={{ position: "relative" }}>
                                     <input
                                         className="modal-input"
                                         placeholder="Player Name"
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
+                                        onFocus={() => searchResults.length && setShowDropdown(true)}
+                                        onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                                         autoFocus
                                     />
                                     <FaUser className="input-icon" size={14} />
+
+                                    {showDropdown && (
+                                        <div className="player-dropdown">
+                                            {isSearching && <div className="dropdown-item">Searching...</div>}
+
+                                            {searchResults.map((c) => (
+                                                <div
+                                                    key={c.phone}
+                                                    className="dropdown-item"
+                                                    onMouseDown={() => selectCustomer(c)}
+                                                >
+                                                    <div>{c.name}</div>
+                                                    <div className="dropdown-phone">{c.phone}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
+
 
                                 <div className="input-container">
                                     <input
