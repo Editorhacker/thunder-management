@@ -74,7 +74,7 @@ const DeviceOccupancyChart: React.FC = () => {
         { name: 'Occupied', value: 0, color: GOLD_COLOR },
         { name: 'Available', value: 0, color: EMPTY_COLOR }
     ]);
-    const [loading, setLoading] = useState(true);
+    const [, setLoading] = useState(true);
     const [activeIndex, setActiveIndex] = useState(0);
 
     useEffect(() => {
@@ -173,18 +173,20 @@ const DeviceOccupancyChart: React.FC = () => {
                             </filter>
                         </defs>
                         <Pie
-                            activeIndex={activeIndex}
-                            activeShape={renderActiveShape}
-                            data={chartData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={85}
-                            outerRadius={110}
-                            paddingAngle={4}
-                            dataKey="value"
-                            onMouseEnter={onPieEnter}
-                            className="cursor-pointer"
-                            stroke="none"
+                            {...({
+                                activeIndex: activeIndex,
+                                activeShape: renderActiveShape,
+                                data: chartData,
+                                cx: "50%",
+                                cy: "50%",
+                                innerRadius: 85,
+                                outerRadius: 110,
+                                paddingAngle: 4,
+                                dataKey: "value",
+                                onMouseEnter: onPieEnter,
+                                className: "cursor-pointer",
+                                stroke: "none"
+                            } as any)}
                         >
                             {chartData.map((entry, index) => (
                                 <Cell

@@ -11,7 +11,7 @@ import {
     FaClock,
     FaChartPie
 } from 'react-icons/fa';
-import { MdTrendingUp, MdDashboard, MdFastfood, MdPeople } from 'react-icons/md';
+import { MdTrendingUp, MdDashboard, MdFastfood } from 'react-icons/md';
 
 import DashboardLayout from '../layouts/DashboardLayout';
 

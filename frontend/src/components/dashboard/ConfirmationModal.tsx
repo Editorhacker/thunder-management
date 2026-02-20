@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaExclamationTriangle, FaCheckCircle, FaTrash } from 'react-icons/fa';
+import { FaExclamationTriangle, FaTrash } from 'react-icons/fa';
 import './ConfirmationModal.css';
 
 interface ConfirmationModalProps {
