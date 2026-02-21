@@ -28,9 +28,28 @@ const getLast24HoursStats = async (req, res) => {
             }
 
             // -------- Snacks --------
-            if (data.snacks) {
-                snackCount[data.snacks] =
-                    (snackCount[data.snacks] || 0) + 1;
+            if (data.snackDetails && Array.isArray(data.snackDetails)) {
+                data.snackDetails.forEach(snack => {
+                    const snackName = snack.name?.trim();
+                    if (snackName) {
+                        snackCount[snackName] = (snackCount[snackName] || 0) + (Number(snack.quantity) || 1);
+                    }
+                });
+            } else if (data.snacks) {
+                // Legacy support for string format "Chips, Coke"
+                const snackStr = String(data.snacks);
+                snackStr.split(',').forEach(s => {
+                    let snackName = s.trim();
+                    let qty = 1;
+                    const match = snackName.match(/(.*?)\s*x(\d+)$/i);
+                    if (match) {
+                        snackName = match[1].trim();
+                        qty = parseInt(match[2], 10) || 1;
+                    }
+                    if (snackName) {
+                        snackCount[snackName] = (snackCount[snackName] || 0) + qty;
+                    }
+                });
             }
 
             // -------- Peak Hour --------
@@ -232,13 +251,29 @@ const getSnacksConsumptionLast24Hours = async (req, res) => {
 
         snapshot.forEach(doc => {
             const data = doc.data();
-            if (!data.snacks) return;
 
-            // snacks assumed as string (e.g. "Coke")
-            const snack = String(data.snacks).trim();
-            if (!snack) return;
-
-            snackMap[snack] = (snackMap[snack] || 0) + 1;
+            if (data.snackDetails && Array.isArray(data.snackDetails)) {
+                data.snackDetails.forEach(snack => {
+                    const snackName = snack.name?.trim();
+                    if (!snackName) return;
+                    snackMap[snackName] = (snackMap[snackName] || 0) + (Number(snack.quantity) || 1);
+                });
+            } else if (data.snacks) {
+                // Legacy support for string format
+                const snackStr = String(data.snacks);
+                snackStr.split(',').forEach(s => {
+                    let snackName = s.trim();
+                    let qty = 1;
+                    const match = snackName.match(/(.*?)\s*x(\d+)$/i);
+                    if (match) {
+                        snackName = match[1].trim();
+                        qty = parseInt(match[2], 10) || 1;
+                    }
+                    if (snackName) {
+                        snackMap[snackName] = (snackMap[snackName] || 0) + qty;
+                    }
+                });
+            }
         });
 
         // Convert to Recharts-friendly array

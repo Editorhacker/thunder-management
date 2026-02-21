@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaTrash, FaUserShield, FaUserTie, FaRedo,  FaHistory } from 'react-icons/fa';
+import { FaTrash, FaUserShield, FaUserTie, FaRedo, FaHistory } from 'react-icons/fa';
 import './DeletionLogs.css';
 
 interface DeletionLog {

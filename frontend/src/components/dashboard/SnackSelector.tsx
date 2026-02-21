@@ -47,9 +47,9 @@ const SnackSelector: React.FC<Props> = ({ onChange }) => {
 
   const getEmoji = (name: string, category: string) => {
     const lower = name.toLowerCase();
-    if (lower.includes('chips')) return '�';
+    if (lower.includes('chips')) return '🍟';
     if (lower.includes('cadbury') || lower.includes('chocolate')) return '🍫';
-    if (lower.includes('maggie') || lower.includes('noodles')) return '�';
+    if (lower.includes('maggie') || lower.includes('noodles')) return '🍜';
     if (lower.includes('redbull') || lower.includes('energy')) return '⚡';
     if (lower.includes('water')) return '💧';
     if (category === 'drink') return '🥤';

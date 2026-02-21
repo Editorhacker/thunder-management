@@ -11,6 +11,7 @@ import {
   FaChevronRight,
   FaChevronLeft,
   FaCheck,
+  FaCheckCircle,
   FaPhone
 } from 'react-icons/fa';
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
@@ -61,6 +62,8 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       metabat: []
     } as Record<string, number[]>
   });
+
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const isSelecting = useRef(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -245,8 +248,11 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
         devices: form.devices
       });
 
-      showToast('Booking created successfully!', 'success');
-      onSuccess();
+      setShowSuccess(true);
+      setTimeout(() => {
+        showToast('Booking created successfully!', 'success');
+        onSuccess();
+      }, 2000);
     } catch (error: any) {
       console.error(error);
       const message = error.response?.data?.message || 'Failed to create booking.';
@@ -305,7 +311,85 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ type: 'spring', duration: 0.5 }}
+        style={{ position: 'relative' }}
       >
+        {/* Success Overlay */}
+        <AnimatePresence>
+          {showSuccess && (
+            <motion.div
+              className="success-overlay-absolute"
+              initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+              animate={{ opacity: 1, backdropFilter: "blur(10px)" }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 50,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(2, 6, 23, 0.85)',
+                borderRadius: '24px',
+                flexDirection: 'column',
+                gap: '20px'
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", damping: 12 }}
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #3b82f6, #eab308)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 30px rgba(59, 130, 246, 0.4)'
+                }}
+              >
+                <FaCheckCircle style={{ fontSize: '40px', color: '#fff' }} />
+              </motion.div>
+
+              <div style={{ textAlign: 'center' }}>
+                <motion.h2
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  style={{
+                    fontSize: '2rem',
+                    color: '#fff',
+                    marginBottom: '8px',
+                    fontWeight: 800,
+                    fontFamily: "'Outfit', sans-serif"
+                  }}
+                >
+                  Booking Confirmed!
+                </motion.h2>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  style={{ color: '#94a3b8', fontSize: '1.1rem' }}
+                >
+                  Get ready, <span style={{ color: '#eab308', fontWeight: 600 }}>{form.customerName}</span>
+                </motion.p>
+              </div>
+
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: 'linear-gradient(90deg, #3b82f6, #eab308)',
+                boxShadow: '0 0 20px rgba(59, 130, 246, 0.5)'
+              }} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Header */}
         <div className="booking-modal-header">
           <button className="modal-close-btn" onClick={onClose}>

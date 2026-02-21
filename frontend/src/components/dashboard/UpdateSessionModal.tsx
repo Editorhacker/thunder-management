@@ -63,7 +63,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('online');
     const [payingNowCount, setPayingNowCount] = useState(0);
 
-    const [customPayAmount, setCustomPayAmount] = useState(0);
+    const [customPayAmount, setCustomPayAmount] = useState<number | ''>('');
     const [paymentMode, setPaymentMode] = useState<'equal' | 'custom'>('equal');
 
     // Derived total people paying now
@@ -236,7 +236,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     if (paymentMode === 'equal') {
         payNowAmount = payingNow * perPersonShare;
     } else {
-        payNowAmount = Math.min(customPayAmount, totalPendingToPay);
+        payNowAmount = Math.min(Number(customPayAmount) || 0, totalPendingToPay);
     }
 
     const newRemainingAmount = Math.max(0, totalPendingToPay - payNowAmount);
@@ -517,10 +517,14 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                     <div className="invoice-row" style={{ marginTop: '10px' }}>
                                         <span className="invoice-label">Enter Amount</span>
                                         <input
-                                            type="number"
+                                            type="text"
                                             className="invoice-field"
+                                            placeholder="0"
                                             value={customPayAmount}
-                                            onChange={e => setCustomPayAmount(Number(e.target.value))}
+                                            onChange={e => {
+                                                const val = e.target.value.replace(/\D/g, "");
+                                                setCustomPayAmount(val ? Number(val) : '');
+                                            }}
                                         />
                                     </div>
                                 )}

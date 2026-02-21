@@ -45,8 +45,8 @@
 
 .snack-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
-    /* slightly wider columns */
+    grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+    /* slightly wider columns adjusted down */
     gap: 0.85rem;
     /* larger gap */
     max-height: 250px;
@@ -61,18 +61,18 @@
     /* slightly stronger border */
     border-radius: 14px;
     /* rounder */
-    padding: 1rem;
-    /* more padding */
+    padding: 0.85rem;
+    /* slightly less padding to keep it in box */
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
-    /* more gap */
+    gap: 0.5rem;
+    /* tight gap */
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     user-select: none;
-    min-height: 160px;
-    /* enforce height */
+    min-height: 155px;
+    box-sizing: border-box;
 }
 
 .snack-card:hover {
@@ -118,14 +118,16 @@
 .quantity-control {
     display: flex;
     align-items: center;
-    gap: 12px;
-    /* increased gap */
+    justify-content: space-between;
+    /* push buttons flush */
+    width: 100%;
     margin-top: auto;
     background: rgba(0, 0, 0, 0.3);
-    /* slightly darker bg */
     border-radius: 20px;
-    padding: 4px;
-    /* more padding */
+    padding: px 6px;
+    box-sizing: border-box;
+    position: relative;
+    bottom: 10px;
 }
 
 .qty-btn {

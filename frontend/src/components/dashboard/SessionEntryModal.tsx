@@ -33,7 +33,7 @@ interface FormState {
     customerName: string;
     contactNumber: string;
     duration: string;        // HH:MM
-    peopleCount: number;
+    peopleCount: number | '';
     gameName: string;
     snacks: string;
     devices: DeviceCounts;
@@ -83,7 +83,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
         customerName: '',
         contactNumber: '',
         duration: "00:00",
-        peopleCount: 1,
+        peopleCount: '',
         gameName: "",
         snacks: '',
         devices: {
@@ -246,7 +246,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const deviceMap = (form.devices as unknown) as Record<string, number[]>;
     const basePrice = calculateSessionPrice(
         durationInHours,
-        form.peopleCount,
+        Number(form.peopleCount) || 1,
         deviceMap
     );
     const totalPrice = basePrice + snackCost - coinDiscount;
@@ -272,6 +272,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
             await axios.post('https://thunder-management.onrender.com/api/sessions/start', {
                 ...form,
+                peopleCount: Number(form.peopleCount) || 1,
                 snackDetails: snackItems,
                 duration: durationInHours,
                 price: totalPrice,
@@ -288,7 +289,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     customerName: '',
                     contactNumber: '',
                     duration: "00:00",
-                    peopleCount: 1,
+                    peopleCount: '',
                     gameName: "",
                     snacks: '',
                     devices: { ps: [], pc: [], vr: [], wheel: [], metabat: [] }
@@ -378,11 +379,11 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                             width: '80px',
                                             height: '80px',
                                             borderRadius: '50%',
-                                            background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                                            background: 'linear-gradient(135deg, #3b82f6, #eab308)',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            boxShadow: '0 0 30px rgba(34, 197, 94, 0.5)'
+                                            boxShadow: '0 0 30px rgba(59, 130, 246, 0.4)'
                                         }}
                                     >
                                         <FaCheckCircle style={{ fontSize: '40px', color: '#fff' }} />
@@ -409,7 +410,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                             transition={{ delay: 0.3 }}
                                             style={{ color: '#94a3b8', fontSize: '1.1rem' }}
                                         >
-                                            Have fun, <span style={{ color: '#22c55e', fontWeight: 600 }}>{form.customerName}</span>
+                                            Have fun, <span style={{ color: '#eab308', fontWeight: 600 }}>{form.customerName}</span>
                                         </motion.p>
                                     </div>
 
@@ -420,8 +421,8 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                         left: 0,
                                         right: 0,
                                         height: '4px',
-                                        background: 'linear-gradient(90deg, #22c55e, #3b82f6)',
-                                        boxShadow: '0 0 20px rgba(34, 197, 94, 0.5)'
+                                        background: 'linear-gradient(90deg, #3b82f6, #eab308)',
+                                        boxShadow: '0 0 20px rgba(59, 130, 246, 0.5)'
                                     }} />
                                 </motion.div>
                             )}
@@ -555,12 +556,15 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                     <label className="field-label">People Count</label>
                                     <div style={{ position: 'relative' }}>
                                         <input
-                                            type="number"
+                                            type="text"
                                             className="field-input"
-                                            min={1}
+                                            placeholder="1"
                                             value={form.peopleCount}
                                             style={{ paddingLeft: '2.5rem' }}
-                                            onChange={e => updateField('peopleCount', Math.max(1, Number(e.target.value)))}
+                                            onChange={e => {
+                                                const val = e.target.value.replace(/\D/g, "");
+                                                updateField('peopleCount', val ? Number(val) : '');
+                                            }}
                                         />
                                         <FaUser style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#52525b' }} />
                                     </div>

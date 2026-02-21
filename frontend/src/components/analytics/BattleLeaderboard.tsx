@@ -17,7 +17,7 @@ interface CompletedBattle {
     challenger: BattlePlayer;
     startTime: string;
     endTime: string;
-    winner?: 'crownHolder' | 'challenger' | 'tie';
+    winner?: string; // It stores the actual player's name or 'tie'
 }
 
 interface LeaderboardEntry {
@@ -47,14 +47,14 @@ const BattleLeaderboard = () => {
                 // Process Crown Holder
                 processBattlePlayer(
                     battle.crownHolder,
-                    battle.winner === 'crownHolder',
+                    battle.winner === battle.crownHolder.name,
                     playerStats
                 );
 
                 // Process Challenger
                 processBattlePlayer(
                     battle.challenger,
-                    battle.winner === 'challenger',
+                    battle.winner === battle.challenger.name,
                     playerStats
                 );
             });

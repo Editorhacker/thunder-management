@@ -180,7 +180,7 @@ const Analytics: React.FC = () => {
                         />
                         <StatBox
                             title="Top Snack"
-                            value={stats.topSnack}
+                            value={stats.topSnack !== 'N/A' ? stats.topSnack.split(',')[0].replace(/x\d+/g, '').trim() : '—'}
                             icon={<FaHamburger />}
                             color="#f59e0b"
                         />

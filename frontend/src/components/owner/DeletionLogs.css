@@ -110,6 +110,8 @@
     overflow-y: auto;
     padding-right: 6px;
     flex: 1;
+    max-height: 570px;
+    /* Exactly 6 items at a time */
 }
 
 .log-item {
@@ -304,7 +306,7 @@
 
 /* Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -312,10 +314,10 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 20px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.35);
 }

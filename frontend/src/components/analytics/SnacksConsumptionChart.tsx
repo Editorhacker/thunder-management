@@ -8,7 +8,7 @@ interface SnackData {
     value: number;
 }
 
-const COLORS = ['#fbbf24', '#f59e0b', '#d97706', '#b45309', '#78350f'];
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#eab308'];
 
 const RADIAN = Math.PI / 180;
 const renderCustomizedLabel = ({
@@ -94,47 +94,55 @@ const SnacksConsumptionChart: React.FC = () => {
                 Most Consumed Snacks
             </h3>
 
-            <div style={{ flex: 1, width: "100%", height: "100%" }}>
-                <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={data}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={renderCustomizedLabel}
-                            outerRadius={120}
-                            dataKey="value"
-                            stroke="none"
-                        >
-                            {data.map((_, index) => (
-                                <Cell
-                                    key={`cell-${index}`}
-                                    fill={COLORS[index % COLORS.length]}
-                                />
-                            ))}
-                        </Pie>
+            {data.length === 0 ? (
+                <div style={{ minHeight: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontStyle: 'italic' }}>
+                    No snacks consumed today
+                </div>
+            ) : (
+                <div style={{ width: "100%", height: "300px", minHeight: "300px" }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={data}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={renderCustomizedLabel}
+                                outerRadius={110}
+                                dataKey="value"
+                                nameKey="name"
+                                stroke="none"
+                            >
+                                {data.map((_, index) => (
+                                    <Cell
+                                        key={`cell-${index}`}
+                                        fill={COLORS[index % COLORS.length]}
+                                    />
+                                ))}
+                            </Pie>
 
-                        <Tooltip
-                            contentStyle={{
-                                backgroundColor: 'var(--bg-dark)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '8px',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.5)'
-                            }}
-                            itemStyle={{ color: 'var(--accent-yellow)' }}
-                        />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                    backdropFilter: 'blur(12px)',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 4px 6px rgba(0,0,0,0.5)'
+                                }}
+                                itemStyle={{ color: '#fff', fontWeight: 'bold' }}
+                            />
 
-                        <Legend
-                            layout="horizontal"
-                            verticalAlign="bottom"
-                            align="center"
-                            wrapperStyle={{ color: 'var(--text-secondary)' }}
-                            iconType="circle"
-                        />
-                    </PieChart>
-                </ResponsiveContainer>
-            </div>
+                            <Legend
+                                layout="horizontal"
+                                verticalAlign="bottom"
+                                align="center"
+                                wrapperStyle={{ color: 'var(--text-secondary)', marginTop: '20px' }}
+                                iconType="circle"
+                            />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+            )}
         </motion.div>
     );
 };
