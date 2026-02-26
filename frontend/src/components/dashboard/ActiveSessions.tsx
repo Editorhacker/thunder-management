@@ -214,6 +214,7 @@ const ActiveSessions = () => {
 
         {!loading && sessions.map((session) => {
           const { progress, isUrgent } = getSessionDetails(session);
+          const startTime = new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
           return (
             <div
@@ -232,6 +233,9 @@ const ActiveSessions = () => {
                   <div className="user-info">
                     <h4>{session.customer}</h4>
                     <p>₹{session.remainingAmount} • {session.peopleCount} Player{session.peopleCount > 1 ? 's' : ''}</p>
+                    <div className="session-meta">
+                      <span className="start-time">Started at {startTime}</span>
+                    </div>
                   </div>
                 </div>
 

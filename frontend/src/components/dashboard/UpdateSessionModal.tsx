@@ -360,6 +360,28 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                         {Math.floor(session.duration)}h {Math.round((session.duration % 1) * 60)}m
                                     </span>
                                 </div>
+                                {(() => {
+                                    const start = new Date(session.startTime).getTime();
+                                    const totalDurationMs = (session.duration + (extraMinutes / 60)) * 60 * 60 * 1000;
+                                    const remaining = (start + totalDurationMs) - Date.now();
+
+                                    let timeText = "Completed";
+                                    if (remaining > 0) {
+                                        const hrs = Math.floor(remaining / (1000 * 60 * 60));
+                                        const mins = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                                        const secs = Math.floor((remaining % (1000 * 60)) / 1000);
+                                        timeText = `${hrs > 0 ? `${hrs}h ` : ''}${mins}m ${secs}s`;
+                                    }
+
+                                    return (
+                                        <div className={`timer-row ${extraMinutes > 0 ? 'updated' : ''}`}>
+                                            <span className="timer-label">Next Update in</span>
+                                            <span className={`timer-value ${remaining < 600000 ? 'urgent' : ''}`}>
+                                                {timeText}
+                                            </span>
+                                        </div>
+                                    );
+                                })()}
                             </section>
 
                             <section>
