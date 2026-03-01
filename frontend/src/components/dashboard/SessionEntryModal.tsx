@@ -349,7 +349,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <div className="modal-backdrop">
                     <motion.div
                         className="modal-containers"
-                        style={{ maxWidth: '800px' }} // Wider for this form
+                        style={{ maxWidth: '80%' }}
                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -487,244 +487,221 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                             </button>
                         </div>
 
-                        <div className="content-wrapper custom-scrollbar" style={{ overflowY: 'auto', maxHeight: '80vh' }}>
-                            {/* Input Grid */}
-                            <div className="input-grid">
-                                <div className="field-group" style={{ position: "relative" }}>
-                                    <label className="field-label">Customer Name</label>
+                        <div className="content-wrapper custom-scrollbar" style={{ overflowY: 'auto', maxHeight: '80vh', display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1rem' }}>
 
-                                    <input
-                                        className="field-input"
-                                        placeholder="Enter name"
-                                        value={form.customerName}
-                                        onChange={e => updateField('customerName', e.target.value)}
-                                        onFocus={() => searchResults.length && setShowDropdown(true)}
-                                        onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-                                    />
+                            {/* Top row: Input Grid + Devices */}
+                            <div style={{ display: 'flex', flexDirection: 'row', gap: '1.5rem' }}>
 
-                                    {showDropdown && (
-                                        <div className="player-dropdown">
-                                            {isSearching && <div className="dropdown-item">Searching...</div>}
+                                {/* Left: Input Grid */}
+                                <div className="input-grid" style={{ flex: '1 1 0', minWidth: 0 }}>
+                                    <div className="field-group" style={{ position: "relative" }}>
+                                        <label className="field-label">Customer Name</label>
 
-                                            {searchResults.map((c, i) => (
-                                                <div
-                                                    key={i}
-                                                    className="dropdown-item"
-                                                    onMouseDown={() => selectCustomer(c)}
-                                                >
-                                                    <div>{c.name}</div>
-                                                    <div style={{ fontSize: 12, opacity: 0.7 }}>
-                                                        {c.phone}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-
-                                <div className="field-group">
-                                    <label className="field-label">Contact</label>
-                                    <input
-                                        className="field-input"
-                                        maxLength={10}
-                                        placeholder="10 Digits"
-                                        value={form.contactNumber}
-                                        onChange={e => {
-                                            const val = e.target.value.replace(/\D/g, "");
-                                            if (val.length <= 10) updateField('contactNumber', val);
-                                        }}
-                                    />
-                                </div>
-
-                                <div className="field-group">
-                                    <label className="field-label">Duration <span style={{ opacity: 0.5, fontWeight: 400 }}>(HH:MM)</span></label>
-                                    <div style={{ position: 'relative' }}>
                                         <input
                                             className="field-input"
-                                            placeholder="00:00"
-                                            value={form.duration}
-                                            style={{ paddingLeft: '2.5rem' }}
-                                            onChange={e => {
-                                                let val = e.target.value.replace(/[^0-9:]/g, "");
-                                                if (val.length === 2 && !val.includes(":")) val = val + ":";
-                                                if (val.length > 5) return;
-                                                updateField("duration", val);
-                                            }}
+                                            placeholder="Enter name"
+                                            value={form.customerName}
+                                            onChange={e => updateField('customerName', e.target.value)}
+                                            onFocus={() => searchResults.length && setShowDropdown(true)}
+                                            onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                                         />
-                                        <FaClock style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#52525b' }} />
-                                    </div>
-                                </div>
 
-                                <div className="field-group " >
-                                    <label className="field-label">People Count</label>
-                                    <div style={{ position: 'relative' }}>
+                                        {showDropdown && (
+                                            <div className="player-dropdown">
+                                                {isSearching && <div className="dropdown-item">Searching...</div>}
+                                                {searchResults.map((c, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="dropdown-item"
+                                                        onMouseDown={() => selectCustomer(c)}
+                                                    >
+                                                        <div>{c.name}</div>
+                                                        <div style={{ fontSize: 12, opacity: 0.7 }}>{c.phone}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="field-group">
+                                        <label className="field-label">Contact</label>
                                         <input
-                                            type="text"
                                             className="field-input"
-                                            placeholder="1"
-                                            value={form.peopleCount}
-                                            style={{ paddingLeft: '2.5rem' }}
+                                            maxLength={10}
+                                            placeholder="10 Digits"
+                                            value={form.contactNumber}
                                             onChange={e => {
                                                 const val = e.target.value.replace(/\D/g, "");
-                                                updateField('peopleCount', val ? Number(val) : '');
+                                                if (val.length <= 10) updateField('contactNumber', val);
                                             }}
                                         />
-                                        <FaUser style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#52525b' }} />
                                     </div>
-                                    {/* Thunder Coins Display */}
 
-
-
-
-                                </div>
-                                <div className="field-group " >
-                                    <label className="field-label">Thunder Coins</label>
-                                    <div
-                                        className="field-input"
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            height: "42px",
-                                            background: "#0f172a",
-                                            border: "1px solid #334155",
-                                            color: "#facc15",
-                                            fontWeight: 600,
-                                            gap: 8
-                                        }}
-                                    >
-                                        {isFetchingPlayer && <span style={{ color: "#3b82f6" }}>Checking player...</span>}
-
-                                        {!isFetchingPlayer && playerFound && (
-                                            <>
-                                                ⚡ {thunderCoins} Coins
-                                            </>
-                                        )}
-
-                                        {!isFetchingPlayer && form.contactNumber.length === 10 && !playerFound && (
-                                            <span style={{ color: "#10b981" }}>New Player</span>
-                                        )}
-
-                                        {!form.contactNumber && <span style={{ color: "#64748b" }}>Enter phone number</span>}
-                                    </div>
-                                </div>
-                                <div style={{ marginTop: 35, display: "flex", flexDirection: "column", gap: 6 }}>
-
-                                    {/* Apply / Cancel Button */}
-                                    <button
-                                        type="button"
-                                        onClick={toggleThunderCoins}
-                                        disabled={thunderCoins < 50 && !coinsApplied}
-                                        style={{
-                                            width: "100%",
-                                            height: "40px",
-                                            fontSize: 13,
-                                            borderRadius: 6,              // rectangular look
-                                            border: "1px solid #334155",
-                                            cursor: thunderCoins >= 50 || coinsApplied ? "pointer" : "not-allowed",
-                                            background: coinsApplied ? "#ef4444" : (thunderCoins >= 50 ? "#eab308" : "#1e293b"),
-                                            color: coinsApplied ? "#ffffff" : "#020617",
-                                            fontWeight: 600,
-                                            letterSpacing: 0.4,
-                                            transition: "0.2s"
-                                        }}
-                                    >
-                                        {coinsApplied ? "Cancel Thunder Coins" : "Apply Thunder Coins"}
-                                    </button>
-
-                                    {/* Discount message below */}
-                                    {coinsApplied && (
-                                        <div style={{
-                                            fontSize: 12,
-                                            color: "#22c55e",
-                                            fontWeight: 500
-                                        }}>
-                                            ⚡ ₹{coinDiscount} discount applied
+                                    <div className="field-group">
+                                        <label className="field-label">Duration <span style={{ opacity: 0.5, fontWeight: 400 }}>(HH:MM)</span></label>
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                className="field-input"
+                                                placeholder="00:00"
+                                                value={form.duration}
+                                                style={{ paddingLeft: '2.5rem' }}
+                                                onChange={e => {
+                                                    let val = e.target.value.replace(/[^0-9:]/g, "");
+                                                    if (val.length === 2 && !val.includes(":")) val = val + ":";
+                                                    if (val.length > 5) return;
+                                                    updateField("duration", val);
+                                                }}
+                                            />
+                                            <FaClock style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#52525b' }} />
                                         </div>
-                                    )}
+                                    </div>
 
+                                    <div className="field-group">
+                                        <label className="field-label">People Count</label>
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                type="text"
+                                                className="field-input"
+                                                placeholder="1"
+                                                value={form.peopleCount}
+                                                style={{ paddingLeft: '2.5rem' }}
+                                                onChange={e => {
+                                                    const val = e.target.value.replace(/\D/g, "");
+                                                    updateField('peopleCount', val ? Number(val) : '');
+                                                }}
+                                            />
+                                            <FaUser style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#52525b' }} />
+                                        </div>
+                                    </div>
+
+                                    <div className="field-group">
+                                        <label className="field-label">Thunder Coins</label>
+                                        <div
+                                            className="field-input"
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                height: "42px",
+                                                background: "#0f172a",
+                                                border: "1px solid #334155",
+                                                color: "#facc15",
+                                                fontWeight: 600,
+                                                gap: 8
+                                            }}
+                                        >
+                                            {isFetchingPlayer && <span style={{ color: "#3b82f6" }}>Checking player...</span>}
+                                            {!isFetchingPlayer && playerFound && (<>⚡ {thunderCoins} Coins</>)}
+                                            {!isFetchingPlayer && form.contactNumber.length === 10 && !playerFound && (
+                                                <span style={{ color: "#10b981" }}>New Player</span>
+                                            )}
+                                            {!form.contactNumber && <span style={{ color: "#64748b" }}>Enter phone number</span>}
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                        <button
+                                            type="button"
+                                            onClick={toggleThunderCoins}
+                                            disabled={thunderCoins < 50 && !coinsApplied}
+                                            style={{
+                                                width: "100%",
+                                                height: "40px",
+                                                fontSize: 13,
+                                                borderRadius: 6,
+                                                border: "1px solid #334155",
+                                                cursor: thunderCoins >= 50 || coinsApplied ? "pointer" : "not-allowed",
+                                                background: coinsApplied ? "#ef4444" : (thunderCoins >= 50 ? "#eab308" : "#1e293b"),
+                                                color: coinsApplied ? "#ffffff" : "#020617",
+                                                fontWeight: 600,
+                                                letterSpacing: 0.4,
+                                                transition: "0.2s"
+                                            }}
+                                        >
+                                            {coinsApplied ? "Cancel Thunder Coins" : "Apply Thunder Coins"}
+                                        </button>
+                                        {coinsApplied && (
+                                            <div style={{ fontSize: 12, color: "#22c55e", fontWeight: 500 }}>
+                                                ⚡ ₹{coinDiscount} discount applied
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="field-group">
+                                        <label className="field-label">Game Name</label>
+                                        <input
+                                            className="field-input"
+                                            type="text"
+                                            placeholder="Game Name"
+                                            value={form.gameName}
+                                            onChange={e => updateField('gameName', e.target.value)}
+                                        />
+                                    </div>
                                 </div>
 
-                                <div className="field-group" style={{ position: "relative" }}>
-                                    <label className="field-label">Game Name</label>
-
-                                    <input
-                                        className="field-input"
-                                        type="text"
-                                        placeholder="Game Name"
-                                        value={form.gameName}
-                                        onChange={e => updateField('gameName', e.target.value)}
-                                    />
-
+                                {/* Right: Devices */}
+                                <div style={{ flex: '1 1 0', minWidth: 0 }}>
+                                    <div className="devices-section" style={{ marginBottom: 0 }}>
+                                        <div className="section-label">Select Devices</div>
+                                        <div className="devices-list">
+                                            <DeviceDropdown
+                                                icon={<FaPlaystation />}
+                                                label="PS5"
+                                                limit={availability.limits.ps}
+                                                value={form.devices.ps}
+                                                occupied={availability.occupied.ps || []}
+                                                onChange={v => updateDevice('ps', v)}
+                                            />
+                                            <DeviceDropdown
+                                                icon={<FaDesktop />}
+                                                label="PC"
+                                                limit={availability.limits.pc}
+                                                value={form.devices.pc}
+                                                occupied={availability.occupied.pc || []}
+                                                onChange={v => updateDevice('pc', v)}
+                                            />
+                                            <DeviceDropdown
+                                                icon={<FaVrCardboard />}
+                                                label="VR"
+                                                limit={availability.limits.vr}
+                                                value={form.devices.vr}
+                                                occupied={availability.occupied.vr || []}
+                                                onChange={v => updateDevice('vr', v)}
+                                            />
+                                            <DeviceDropdown
+                                                icon={<GiSteeringWheel />}
+                                                label="Wheel"
+                                                limit={availability.limits.wheel}
+                                                value={form.devices.wheel}
+                                                occupied={availability.occupied.wheel || []}
+                                                onChange={v => updateDevice('wheel', v)}
+                                            />
+                                            <DeviceDropdown
+                                                icon={<GiCricketBat />}
+                                                label="MetaBat"
+                                                limit={availability.limits.metabat}
+                                                value={form.devices.metabat}
+                                                occupied={availability.occupied.metabat || []}
+                                                onChange={v => updateDevice('metabat', v)}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="field-group" style={{ gridColumn: '1 / -1' }}>
-                                    <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Snacks / Combo</label>
-                                    <SnackSelector
-                                        onChange={(val, cost, items) => {
-                                            updateField('snacks', val);
-                                            setSnackCost(cost);
-                                            // Map to backend expected format
-                                            setSnackItems(items.map(i => ({ name: i.name, quantity: i.qty })));
-                                        }}
-                                    />
-                                </div>
                             </div>
 
-                            {/* Devices */}
-                            <div className="devices-section">
-                                <div className="section-label">Select Devices</div>
-                                <div className="devices-list">
-                                    <DeviceDropdown
-                                        icon={<FaPlaystation />}
-                                        label="PS5"
-                                        limit={availability.limits.ps}
-                                        value={form.devices.ps}
-                                        occupied={availability.occupied.ps || []}
-                                        onChange={v => updateDevice('ps', v)}
-                                    />
-
-                                    <DeviceDropdown
-                                        icon={<FaDesktop />}
-                                        label="PC"
-                                        limit={availability.limits.pc}
-                                        value={form.devices.pc}
-                                        occupied={availability.occupied.pc || []}
-                                        onChange={v => updateDevice('pc', v)}
-                                    />
-
-                                    <DeviceDropdown
-                                        icon={<FaVrCardboard />}
-                                        label="VR"
-                                        limit={availability.limits.vr}
-                                        value={form.devices.vr}
-                                        occupied={availability.occupied.vr || []}
-                                        onChange={v => updateDevice('vr', v)}
-                                    />
-
-                                    <DeviceDropdown
-                                        icon={<GiSteeringWheel />}
-                                        label="Wheel"
-                                        limit={availability.limits.wheel}
-                                        value={form.devices.wheel}
-                                        occupied={availability.occupied.wheel || []}
-                                        onChange={v => updateDevice('wheel', v)}
-                                    />
-
-                                    <DeviceDropdown
-                                        icon={<GiCricketBat />}
-                                        label="MetaBat"
-                                        limit={availability.limits.metabat}
-                                        value={form.devices.metabat}
-                                        occupied={availability.occupied.metabat || []}
-                                        onChange={v => updateDevice('metabat', v)}
-                                    />
-                                </div>
+                            {/* Bottom: Snacks spanning full width */}
+                            <div>
+                                <div className="section-label" style={{ marginBottom: '0.5rem' }}>Snacks / Combo</div>
+                                <SnackSelector
+                                    onChange={(val, cost, items) => {
+                                        updateField('snacks', val);
+                                        setSnackCost(cost);
+                                        setSnackItems(items.map(i => ({ name: i.name, quantity: i.qty })));
+                                    }}
+                                />
                             </div>
 
                         </div>
-
-                        {/* Footer - Moved outside scroller for stickiness */}
                         <div className="action-bar" style={{ borderRadius: '0 0 24px 24px' }}>
                             {Object.values(form.devices).some(val => val.length > 0) && (
                                 <div className="price-display" style={{ textAlign: "right" }}>

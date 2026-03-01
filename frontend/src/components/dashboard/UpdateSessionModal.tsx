@@ -353,10 +353,10 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                 </div>
 
                 {/* Content */}
-                <div className="content-wrapper custom-scrollbar" style={{ paddingTop: '1.5rem', paddingBottom: '2rem' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 350px', gap: '2.5rem', alignItems: 'start' }}>
+                <div className="content-wrapper custom-scrollbar" style={{ paddingTop: '1rem', paddingBottom: '2rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) 380px', gap: '2rem', alignItems: 'start' }}>
 
-                        {/* LEFT COLUMN: Adjustments */}
+                        {/* LEFT COLUMN: Time + Players + Snacks */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
                             {/* Edit Session Correction */}
@@ -443,7 +443,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
                             <section>
                                 <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
-                                    <FaUserPlus style={{ display: 'inline', marginRight: '6px' }} /> Players & Devices
+                                    <FaUserPlus style={{ display: 'inline', marginRight: '6px' }} /> Add Players
                                 </h3>
                                 <div className="item-grid">
                                     <div className="input-group">
@@ -455,7 +455,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                             onChange={e => setNewMember({ ...newMember, name: e.target.value })}
                                         />
                                     </div>
-                                    <div className="minimal-counter ">
+                                    <div className="minimal-counter">
                                         <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: Math.max(0, p.peopleCount - 1) }))}>
                                             <FaMinus size={12} />
                                         </button>
@@ -466,16 +466,6 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                         <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: p.peopleCount + 1 }))}>
                                             <FaPlus size={12} />
                                         </button>
-                                    </div>
-                                    <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', marginTop: '1.5rem', marginBottom: '1rem' }}>
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Assign Hardware</h4>
-                                    </div>
-                                    <div className="devices-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
-                                        <DeviceDropdown icon={<FaGamepad />} label="PS5" limit={availability.limits.ps} value={newMember.devices.ps} occupied={availability.occupied.ps || []} onChange={v => updateDevice('ps', v)} />
-                                        <DeviceDropdown icon={<FaDesktop />} label="PC" limit={availability.limits.pc} value={newMember.devices.pc} occupied={availability.occupied.pc || []} onChange={v => updateDevice('pc', v)} />
-                                        <DeviceDropdown icon={<FaVrCardboard />} label="VR" limit={availability.limits.vr} value={newMember.devices.vr} occupied={availability.occupied.vr || []} onChange={v => updateDevice('vr', v)} />
-                                        <DeviceDropdown icon={<GiSteeringWheel />} label="Wheel" limit={availability.limits.wheel} value={newMember.devices.wheel} occupied={availability.occupied.wheel || []} onChange={v => updateDevice('wheel', v)} />
-                                        <DeviceDropdown icon={<GiCricketBat />} label="MetaBat" limit={availability.limits.metabat} value={newMember.devices.metabat} occupied={availability.occupied.metabat || []} onChange={v => updateDevice('metabat', v)} />
                                     </div>
                                 </div>
                             </section>
@@ -491,6 +481,20 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                     }}
                                 />
                             </section>
+                        </div>
+
+                        {/* MIDDLE COLUMN: Assign Hardware */}
+                        <div>
+                            <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                                <FaTools style={{ display: 'inline', marginRight: '6px' }} /> Assign Hardware
+                            </h3>
+                            <div className="devices-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                                <DeviceDropdown icon={<FaGamepad />} label="PS5" limit={availability.limits.ps} value={newMember.devices.ps} occupied={availability.occupied.ps || []} onChange={v => updateDevice('ps', v)} />
+                                <DeviceDropdown icon={<FaDesktop />} label="PC" limit={availability.limits.pc} value={newMember.devices.pc} occupied={availability.occupied.pc || []} onChange={v => updateDevice('pc', v)} />
+                                <DeviceDropdown icon={<FaVrCardboard />} label="VR" limit={availability.limits.vr} value={newMember.devices.vr} occupied={availability.occupied.vr || []} onChange={v => updateDevice('vr', v)} />
+                                <DeviceDropdown icon={<GiSteeringWheel />} label="Wheel" limit={availability.limits.wheel} value={newMember.devices.wheel} occupied={availability.occupied.wheel || []} onChange={v => updateDevice('wheel', v)} />
+                                <DeviceDropdown icon={<GiCricketBat />} label="MetaBat" limit={availability.limits.metabat} value={newMember.devices.metabat} occupied={availability.occupied.metabat || []} onChange={v => updateDevice('metabat', v)} />
+                            </div>
                         </div>
 
                         {/* RIGHT COLUMN: Invoice */}

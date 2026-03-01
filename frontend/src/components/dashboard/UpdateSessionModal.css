@@ -34,7 +34,7 @@
     margin-top: 60px;
     background: var(--modal-bg);
     width: 100%;
-    max-width: 860px;
+    max-width: 90%;
     border-radius: 20px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
     border: 1px solid var(--glass-border);
@@ -43,7 +43,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    max-height: 90vh;
+    max-height: 90%;
 }
 
 /* --- Header --- */
