@@ -5,13 +5,17 @@ import './index.css'
 import App from './App.tsx'
 import { BrowserRouter } from 'react-router-dom';
 
+import { PricingProvider } from './context/PricingContext';
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
 
     <BrowserRouter>
         <AuthProvider>
-            <ToastProvider>
-                <App />
-            </ToastProvider>
+            <PricingProvider>
+                <ToastProvider>
+                    <App />
+                </ToastProvider>
+            </PricingProvider>
         </AuthProvider>
     </BrowserRouter>
 )

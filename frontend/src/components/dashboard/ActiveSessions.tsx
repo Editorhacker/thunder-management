@@ -6,6 +6,7 @@ import UpdateSessionModal from './UpdateSessionModal';
 import './ActiveSessions.css';
 import { io } from 'socket.io-client';
 import { isFunNightTime, isNormalHourTime } from '../../utils/pricing';
+import { usePricing } from '../../context/PricingContext';
 
 /* ---------------------------------------
    Device Icon Helper
@@ -45,6 +46,7 @@ interface ActiveSession {
 }
 
 const ActiveSessions = () => {
+  const { config } = usePricing();
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<ActiveSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -139,8 +141,8 @@ const ActiveSessions = () => {
     return () => clearInterval(timer);
   }, [sessions, selectedSession]); // Dep depends on sessions list
 
-  const isFunNight = isFunNightTime();
-  const isNormalHour = isNormalHourTime();
+  const isFunNight = isFunNightTime(new Date(), config);
+  const isNormalHour = isNormalHourTime(new Date(), config);
 
   /* ---------------------------------------
      Remaining time helper

@@ -30,6 +30,7 @@ app.use('/api/owner', require('./routes/ownerRoute'));
 app.use('/api/management', require('./routes/managementRoutes'));
 app.use('/api/subscription', require('./routes/subscriptionRoute'));
 app.use('/api/snacks', snackRoutes);
+app.use('/api/pricing', require('./routes/pricingRoutes'));
 
 app.use('/api/customers', searchCustomer);
 

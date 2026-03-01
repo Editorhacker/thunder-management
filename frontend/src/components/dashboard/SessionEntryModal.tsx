@@ -16,6 +16,7 @@ import axios from 'axios';
 import './SessionEntry.css';
 import './UpdateSessionModal.css'; // Reuse modal styles
 import { calculateSessionPrice, isFunNightTime, isNormalHourTime, isHappyHourTime } from '../../utils/pricing';
+import { usePricing } from '../../context/PricingContext';
 
 /* ---------------- TYPES ---------------- */
 
@@ -75,6 +76,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const [searchResults, setSearchResults] = useState<SearchCustomer[]>([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+    const { config } = usePricing();
 
 
 
@@ -247,14 +249,16 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const basePrice = calculateSessionPrice(
         durationInHours,
         Number(form.peopleCount) || 1,
-        deviceMap
+        deviceMap,
+        new Date(),
+        config
     );
     const totalPrice = basePrice + snackCost - coinDiscount;
 
 
-    const isHappyHour = isHappyHourTime();
-    const isFunNight = !isHappyHour && isFunNightTime();
-    const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime();
+    const isHappyHour = isHappyHourTime(new Date(), config);
+    const isFunNight = !isHappyHour && isFunNightTime(new Date(), config);
+    const isNormalHour = !isHappyHour && !isFunNight && isNormalHourTime(new Date(), config);
 
     // const redeemableBlocks = Math.floor(thunderCoins / 50);
     // const maxDiscount = redeemableBlocks * 20;

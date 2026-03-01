@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { MdDashboard, MdAnalytics, MdChevronLeft, MdChevronRight } from 'react-icons/md';
 import { useState } from 'react';
-import { FaUserShield} from 'react-icons/fa';
+import { FaUserShield, FaCoins } from 'react-icons/fa';
 import logo from '../../assets/logo.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
@@ -16,6 +16,7 @@ const navItems = [
   { path: '/employee', icon: MdDashboard, label: 'Dashboard' },
   { path: '/analytic', icon: MdAnalytics, label: 'Analysis' },
   { path: '/owner', icon: FaUserShield, label: 'Owner' },
+  { path: '/owner/pricing', icon: FaCoins, label: 'Pricing Config' },
 ];
 
 const Sidebar = ({ isCollapsed = false, toggleCollapsed }: SidebarProps) => {
@@ -25,9 +26,8 @@ const Sidebar = ({ isCollapsed = false, toggleCollapsed }: SidebarProps) => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Filter items: Only show 'Owner' if user is owner
   const displayedNavItems = navItems.filter(item => {
-    if (item.label === 'Owner') {
+    if (item.label === 'Owner' || item.label === 'Pricing Config') {
       return user?.role === 'owner';
     }
     return true;

@@ -8,6 +8,7 @@ import "./UpdateSessionModal.css";
 import SnackSelector from './SnackSelector';
 import DeviceDropdown from './DeviceDropdown';
 import { calculateSessionPrice } from '../../utils/pricing';
+import { usePricing } from '../../context/PricingContext';
 import ConfirmationModal from './ConfirmationModal';
 import { useAuth } from '../../context/AuthContext';
 
@@ -58,6 +59,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     // ------------------- State -------------------
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const { user } = useAuth();
+    const { config } = usePricing();
 
     // Replaced single payingNow state with toggles
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('online');
@@ -157,7 +159,8 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         session.duration || 0,
         totalPeople,
         mergedDevices,
-        new Date(session.startTime)
+        new Date(session.startTime),
+        config
     );
 
     /* ---------- STEP 2: JOIN COST (Initial 30-min base charge) ---------- */
@@ -171,8 +174,8 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         // If it is less than half an hour (30 mins), charge a minimum of half an hour (0.5 hrs)
         const joinDurationHrs = (session.duration || 0) > 30 ? (session.duration / 60) : 0.5;
 
-        const baseNewConfig = calculateSessionPrice(joinDurationHrs, totalPeople, mergedDevices, new Date(session.startTime));
-        const baseOldConfig = calculateSessionPrice(joinDurationHrs, session.peopleCount || 1, currentDeviceMap, new Date(session.startTime));
+        const baseNewConfig = calculateSessionPrice(joinDurationHrs, totalPeople, mergedDevices, new Date(session.startTime), config);
+        const baseOldConfig = calculateSessionPrice(joinDurationHrs, session.peopleCount || 1, currentDeviceMap, new Date(session.startTime), config);
 
         joinCost = Math.max(0, baseNewConfig - baseOldConfig);
     }
@@ -182,7 +185,8 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         newDuration,
         totalPeople,
         mergedDevices,
-        new Date(session.startTime)
+        new Date(session.startTime),
+        config
     );
 
 

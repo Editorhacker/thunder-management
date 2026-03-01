@@ -21,6 +21,7 @@ import { useToast } from '../../context/ToastContext';
 
 import DeviceDropdown from './DeviceDropdown'; // Imported shared component
 import { calculateSessionPrice } from '../../utils/pricing';
+import { usePricing } from '../../context/PricingContext';
 
 interface Props {
   onClose: () => void;
@@ -46,6 +47,7 @@ const DEVICES: DeviceInfo[] = [
 ];
 
 const BookingModal = ({ onClose, onSuccess }: Props) => {
+  const { config } = usePricing();
   const [currentStep, setCurrentStep] = useState(1);
   const [form, setForm] = useState({
     customerName: '',
@@ -274,7 +276,8 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       duration,
       form.peopleCount,
       form.devices, // Expects Record<string, number[]>
-      start // Use booking start time for pricing logic (Normal vs Fun)
+      start, // Use booking start time for pricing logic (Normal vs Fun)
+      config
     );
   };
 
