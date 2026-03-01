@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { FaTimes, FaDesktop, FaGamepad, FaClock, FaUserPlus, FaPizzaSlice, FaMinus, FaPlus, FaChevronRight, FaTrash, FaVrCardboard } from "react-icons/fa";
+import { FaTimes, FaDesktop, FaGamepad, FaClock, FaUserPlus, FaPizzaSlice, FaMinus, FaPlus, FaChevronRight, FaTrash, FaVrCardboard, FaEdit, FaTools, FaBolt } from "react-icons/fa";
 import { GiSteeringWheel, GiCricketBat } from "react-icons/gi";
 import "./UpdateSessionModal.css";
 import SnackSelector from './SnackSelector';
@@ -71,6 +71,11 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     // Derived total people paying now
     const payingNow = paymentMode === 'equal' ? payingNowCount : 1;
 
+    // Edit Mode State
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [correctedPeopleCount, setCorrectedPeopleCount] = useState(session.peopleCount);
+    const [priceAdjustment, setPriceAdjustment] = useState(0);
+
 
     // Feature 1: Extend Time
     const [extraMinutes, setExtraMinutes] = useState(0);
@@ -95,7 +100,10 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
             const end = start + durationMs;
             const now = Date.now();
 
-            if (now > end + 30000) { // 30s grace
+            // Only auto-close if time is up AND it's fully paid
+            const isFullyPaid = (session.remainingAmount || 0) <= 0;
+
+            if (now > end + 30000 && isFullyPaid) { // 30s grace
                 onClose();
             }
         };
@@ -138,23 +146,28 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     });
 
 
-    // 1. Calculate Old Price (Standard or Stored)
-    // Actually we trust session.price.
+    // ------------------- Calculations -------------------
 
-    // 2. Calculate New Total Scenario
-    /* =========================================================
-    JOIN + EXTEND DELTA BILLING (CORRECT GAMING CAFE LOGIC)
-    ========================================================= */
+    // Correction Logic: Recalculate what the ORIGINAL price should have been with corrected people
+    const originalPriceWithCorrection = calculateSessionPrice(
+        session.duration || 0,
+        isEditMode ? correctedPeopleCount : session.peopleCount,
+        currentDeviceMap,
+        new Date(session.startTime),
+        config
+    );
+
+    const corePriceCorrectionDelta = originalPriceWithCorrection - session.price + priceAdjustment;
 
     // total people after adding members
+    const basePeopleForUpdate = isEditMode ? correctedPeopleCount : session.peopleCount;
     const addedPeople = newMember.peopleCount || 0;
-    const totalPeople = (session.peopleCount || 1) + addedPeople;
+    const totalPeople = (basePeopleForUpdate || 1) + addedPeople;
 
     // duration after extension
     const newDuration = (session.duration || 0) + (extraMinutes / 60);
 
     /* ---------- STEP 1: REBUILD OLD PRICE WITH NEW PEOPLE ---------- */
-    // What the total SHOULD have been if new players existed from start
     const recalculatedOldTotal = calculateSessionPrice(
         session.duration || 0,
         totalPeople,
@@ -163,20 +176,15 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         config
     );
 
-    /* ---------- STEP 2: JOIN COST (Initial 30-min base charge) ---------- */
+    /* ---------- STEP 2: JOIN COST ---------- */
     const originalStoredTotal = session.price;
     let joinCost = 0;
     const hasNewConfig = (newMember.peopleCount || 0) > 0 || Object.values(newMember.devices).some((arr: number[]) => arr.length > 0);
 
     if (hasNewConfig) {
-        // The user wants group pricing (delta between total old group and total new group) rather than individual per-person pricing
-        // If the current session duration is more than half an hour (30 mins), charge according to the full user duration
-        // If it is less than half an hour (30 mins), charge a minimum of half an hour (0.5 hrs)
         const joinDurationHrs = (session.duration || 0) > 30 ? (session.duration / 60) : 0.5;
-
         const baseNewConfig = calculateSessionPrice(joinDurationHrs, totalPeople, mergedDevices, new Date(session.startTime), config);
-        const baseOldConfig = calculateSessionPrice(joinDurationHrs, session.peopleCount || 1, currentDeviceMap, new Date(session.startTime), config);
-
+        const baseOldConfig = calculateSessionPrice(joinDurationHrs, basePeopleForUpdate || 1, currentDeviceMap, new Date(session.startTime), config);
         joinCost = Math.max(0, baseNewConfig - baseOldConfig);
     }
 
@@ -189,43 +197,21 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         config
     );
 
-
-
-    // Robustness: If remainingPeople is missing OR equals totalPeople despite payment, infer it
-    let currentRemainingPeople = session.remainingPeople ?? totalPeople;
-
-    // If DB says everyone is remaining, but we have paid amount, recalculate based on shares
-    if ((session.remainingPeople === undefined || session.remainingPeople === totalPeople) && (session.paidAmount || 0) > 0) {
-        // Estimate how many "full person shares" have been paid
-        const baseShare = session.price / totalPeople;
-        const peoplePaid = Math.floor((session.paidAmount || 0) / baseShare);
-        currentRemainingPeople = Math.max(0, totalPeople - peoplePaid);
-    }
-
-    // CRITICAL FIX: Calculate charges for REMAINING PEOPLE only
-    // People who already paid and left won't use the extra time!
-
-    // Calculate the cost of EXTRA time for REMAINING people
-    // CRITICAL: Use Delta Pricing to avoid re-triggering "First Hour" base costs
-
     const extraTimeCost = Math.max(0, recalculatedNewTotal - recalculatedOldTotal);
-    // Total new charges = extra time for remaining people + snacks
 
     /* ---------- STEP 4: FINAL NEW CHARGES ---------- */
-    const chargesAsString = joinCost + extraTimeCost + newSnackCost;
+    const chargesAsString = corePriceCorrectionDelta + joinCost + extraTimeCost + newSnackCost;
 
     /* ---------- TOTAL SESSION VALUE AFTER UPDATE ---------- */
     const totalToPay = originalStoredTotal + chargesAsString;
 
     // Track actual amounts paid, not just people count
     const currentRemainingAmount = session.remainingAmount ?? session.price;
+    const baseRemainingPeople = session.remainingPeople ?? session.peopleCount;
+    const currentRemainingPeople = baseRemainingPeople + addedPeople;
     const alreadyPaidAmount = session.paidAmount || 0;
 
-    // Removed unused newRemainingPeople calculation
-
     // CRITICAL FIX: Simplify share calculation
-    // Instead of complex reconstruction, simply divide TOTAL PENDING by REMAINING PEOPLE.
-    // This correctly handles saved sessions and partial payments.
     const totalPendingToPay = (session.remainingAmount ?? session.price) + chargesAsString;
 
     // Avoid division by zero
@@ -279,18 +265,49 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         }
     };
 
+    const handleFastComplete = async () => {
+        try {
+            const start = new Date(session.startTime).getTime();
+            const now = Date.now();
+            const elapsedHours = (now - start) / (1000 * 60 * 60);
+
+            // We want NEW DURATION to be exactly elapsedHours
+            // Current duration is session.duration
+            const deltaHours = elapsedHours - session.duration;
+
+            const payload = {
+                extraTime: deltaHours,
+                extraPrice: 0, // Truncating doesn't add extra price by default
+                paymentMode: 'equal',
+                paidNow: 0,
+                payingPeopleNow: 0
+            };
+
+            await axios.post(
+                `https://thunder-management.onrender.com/api/sessions/update/${session.id}`,
+                payload
+            );
+
+            onClose();
+        } catch (err) {
+            console.error(err);
+            alert("Failed to complete session early");
+        }
+    };
+
     const handleConfirm = async () => {
         try {
             // Re-calculate payload values
             const extraHours = extraMinutes / 60;
-            const charges = joinCost + extraTimeCost;
-            // Extra time cost for remaining people only
+            const charges = corePriceCorrectionDelta + joinCost + extraTimeCost;
             const memberCount = newMember.peopleCount;
+            const correctionPeople = isEditMode ? (correctedPeopleCount - session.peopleCount) : 0;
 
             const payload = {
                 extraTime: extraHours,
-                extraPrice: charges + newSnackCost, // Extra time cost + snacks
+                extraPrice: charges + newSnackCost,
                 newMember: memberCount > 0 ? newMember : null,
+                addedPeopleCorrection: correctionPeople,
                 snacks: newSnackItems,
                 paidNow: payNowAmount,
                 payingPeopleNow: paymentMode === 'equal' ? payingNow : 1,
@@ -341,6 +358,42 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
                         {/* LEFT COLUMN: Adjustments */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+                            {/* Edit Session Correction */}
+                            {isEditMode && (
+                                <div className="edit-correction-section">
+                                    <div className="section-title-sm">
+                                        <FaTools /> Session Override & Corrections
+                                    </div>
+                                    <div className="item-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                        <div className="input-group">
+                                            <label className="input-label">Correct Original People Count</label>
+                                            <div className="minimal-counter" style={{ padding: '0.75rem', marginBottom: 0 }}>
+                                                <button className="counter-btn" style={{ width: '32px', height: '32px' }} onClick={() => setCorrectedPeopleCount(p => Math.max(1, p - 1))}>
+                                                    <FaMinus size={10} />
+                                                </button>
+                                                <div className="counter-value" style={{ fontSize: '1.5rem' }}>{correctedPeopleCount}</div>
+                                                <button className="counter-btn" style={{ width: '32px', height: '32px' }} onClick={() => setCorrectedPeopleCount(p => p + 1)}>
+                                                    <FaPlus size={10} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Price Adjustment (e.g. -50 for return)</label>
+                                            <input
+                                                type="number"
+                                                className="modal-input"
+                                                placeholder="0"
+                                                value={priceAdjustment || ''}
+                                                onChange={e => setPriceAdjustment(Number(e.target.value))}
+                                            />
+                                            <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '4px', display: 'block' }}>
+                                                Use negative values to reduce price.
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <section>
                                 <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -581,6 +634,22 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                         title="Delete Session"
                     >
                         <FaTrash />
+                    </button>
+
+                    <button
+                        className={`edit-session-btn ${isEditMode ? 'active' : ''}`}
+                        onClick={() => setIsEditMode(!isEditMode)}
+                        title="Edit Original Session Details"
+                    >
+                        <FaEdit />
+                    </button>
+
+                    <button
+                        className="fast-complete-btn"
+                        onClick={handleFastComplete}
+                        title="Fast Complete (End Session Now)"
+                    >
+                        <FaBolt />
                     </button>
 
                     <div className="total-section" style={{ marginLeft: 'auto', marginRight: '1rem', textAlign: 'right' }}>

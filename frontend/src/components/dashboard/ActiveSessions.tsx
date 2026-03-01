@@ -6,7 +6,7 @@ import UpdateSessionModal from './UpdateSessionModal';
 import './ActiveSessions.css';
 import { io } from 'socket.io-client';
 import { isFunNightTime, isNormalHourTime } from '../../utils/pricing';
-import { usePricing } from '../../context/PricingContext';
+
 
 /* ---------------------------------------
    Device Icon Helper
@@ -46,7 +46,6 @@ interface ActiveSession {
 }
 
 const ActiveSessions = () => {
-  const { config } = usePricing();
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<ActiveSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,10 +114,13 @@ const ActiveSessions = () => {
         const start = new Date(session.startTime).getTime();
         const totalDurationMs = session.duration * 60 * 60 * 1000;
         const end = start + totalDurationMs;
-        const remaining = end - now;
+        const remaining = end - currentTime;
 
         // If time is up by more than 30 seconds (-30000ms) AND it is fully paid
-        if (remaining < -30000 && (session.remainingAmount || 0) <= 0 && !processingRef.has(session.id)) {
+        // Strictly check that remainingAmount is 0 or less
+        const isFullyPaid = (Number(session.remainingAmount) || 0) <= 0;
+
+        if (remaining < -30000 && isFullyPaid && !processingRef.has(session.id)) {
           processingRef.add(session.id);
           console.log(`Auto-completing session ${session.id} because time is up > 30s and fully paid`);
 
@@ -139,10 +141,10 @@ const ActiveSessions = () => {
 
     }, 1000);
     return () => clearInterval(timer);
-  }, [sessions, selectedSession]); // Dep depends on sessions list
+  }, [sessions, selectedSession, currentTime]); // Added currentTime to deps
 
-  const isFunNight = isFunNightTime(new Date(), config);
-  const isNormalHour = isNormalHourTime(new Date(), config);
+  const isFunNight = isFunNightTime();
+  const isNormalHour = isNormalHourTime();
 
   /* ---------------------------------------
      Remaining time helper
@@ -153,8 +155,8 @@ const ActiveSessions = () => {
     const end = start + totalDurationMs;
 
     const now = currentTime;
-    const elapsed = now - start;
     const remaining = end - now;
+    const isUnpaidFinished = remaining <= 0 && (Number(session.remainingAmount) || 0) > 0;
 
     // UI Logic for completed
     let timeText = "Completed";
@@ -164,8 +166,9 @@ const ActiveSessions = () => {
       const secs = Math.floor((remaining % (1000 * 60)) / 1000);
       timeText = `${hrs > 0 ? `${hrs}h ` : ''}${mins}m ${secs}s`;
     } else {
-      // Show negative countdown or "Vanishing..."
-      if (remaining > -30000) {
+      if (isUnpaidFinished) {
+        timeText = "Payment Pending";
+      } else if (remaining > -30000) {
         const vanishingIn = Math.ceil((30000 + remaining) / 1000);
         timeText = `Vanishing in ${vanishingIn}s`;
       } else {
@@ -173,9 +176,9 @@ const ActiveSessions = () => {
       }
     }
 
+    const elapsed = now - start;
     const progress = Math.min(100, Math.max(0, (elapsed / totalDurationMs) * 100));
     const isUrgent = remaining < 10 * 60 * 1000 && remaining > 0;
-    const isUnpaidFinished = remaining <= 0 && (session.remainingAmount || 0) > 0;
 
     return { progress, isUrgent, isUnpaidFinished, timeText, remaining };
   };

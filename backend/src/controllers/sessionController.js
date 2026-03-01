@@ -512,7 +512,7 @@ const getDeviceAvailabilityForTime = async (req, res) => {
 const updateSession = async (req, res) => {
     try {
         const { id } = req.params;
-        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks, paymentMode, cashCount, onlineCount } = req.body;
+        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks, paymentMode, cashCount, onlineCount, addedPeopleCorrection } = req.body;
 
         // Deduct snacks for update
         if (snacks && Array.isArray(snacks) && snacks.length > 0) {
@@ -576,7 +576,7 @@ const updateSession = async (req, res) => {
             addedPeople = newMember.peopleCount || 0;
         }
 
-        const newPeopleCount = data.peopleCount + addedPeople;
+        const newPeopleCount = data.peopleCount + addedPeople + (addedPeopleCorrection || 0);
         const currentRemainingPeople = data.remainingPeople ?? data.peopleCount;
 
         let peopleLeaving = 0;
@@ -587,7 +587,7 @@ const updateSession = async (req, res) => {
             peopleLeaving = currentPayment > 0 ? 1 : 0;
         }
 
-        finalRemainingPeople = Math.max(0, currentRemainingPeople - peopleLeaving + addedPeople);
+        finalRemainingPeople = Math.max(0, currentRemainingPeople - peopleLeaving + addedPeople + (addedPeopleCorrection || 0));
 
         // If session fully paid → zero remaining people
         if (remainingAmount === 0) {

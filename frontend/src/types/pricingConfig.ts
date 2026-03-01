@@ -1,7 +1,7 @@
 export interface PricingConfig {
     happyHour: {
-        weekdayStartHour: number; weekdayEndHour: number; weekdayEndMinute: number;
-        weekendStartHour: number; weekendEndHour: number; weekendEndMinute: number;
+        weekdayStartHour: number; weekdayStartMinute: number; weekdayEndHour: number; weekdayEndMinute: number;
+        weekendStartHour: number; weekendStartMinute: number; weekendEndHour: number; weekendEndMinute: number;
     };
     normalHour: {
         weekendStartHour: number; weekendStartMinute: number; weekendEndHour: number; weekendEndMinute: number;
@@ -35,8 +35,8 @@ export interface PricingConfig {
 export const defaultPricingConfig: PricingConfig = {
     // Time ranges
     happyHour: {
-        weekdayStartHour: 9, weekdayEndHour: 13, weekdayEndMinute: 45,
-        weekendStartHour: 9, weekendEndHour: 11, weekendEndMinute: 45
+        weekdayStartHour: 9, weekdayStartMinute: 0, weekdayEndHour: 13, weekdayEndMinute: 45,
+        weekendStartHour: 9, weekendStartMinute: 0, weekendEndHour: 11, weekendEndMinute: 45
     },
     normalHour: {
         weekendStartHour: 11, weekendStartMinute: 45, weekendEndHour: 20, weekendEndMinute: 45,
