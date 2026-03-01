@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaPlus, FaMinus } from 'react-icons/fa';
-import axios from 'axios';
+import api from '../../utils/api';
 import './SnackSelector.css';
 
 /* ---------------- TYPES ---------------- */
@@ -60,7 +60,7 @@ const SnackSelector: React.FC<Props> = ({ onChange }) => {
   useEffect(() => {
     const fetchSnacks = async () => {
       try {
-        const res = await axios.get('https://thunder-management.onrender.com/api/snacks');
+        const res = await api.get('/api/snacks');
         const data = res.data.map((s: any) => ({
           id: s.id,
           name: s.name,

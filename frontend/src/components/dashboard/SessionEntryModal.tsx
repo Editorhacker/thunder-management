@@ -12,7 +12,7 @@ import {
     FaCheckCircle
 } from 'react-icons/fa';
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
-import axios from 'axios';
+import api from '../../utils/api';
 import './SessionEntry.css';
 import './UpdateSessionModal.css'; // Reuse modal styles
 import { calculateSessionPrice, isFunNightTime, isNormalHourTime, isHappyHourTime } from '../../utils/pricing';
@@ -122,8 +122,8 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     const fetchAvailability = async () => {
         try {
-            const res = await axios.get<{ limits: Record<DeviceKeys, number>; occupied: { [key in DeviceKeys]: number[] } }>(
-                'https://thunder-management.onrender.com/api/sessions/availability'
+            const res = await api.get<{ limits: Record<DeviceKeys, number>; occupied: { [key in DeviceKeys]: number[] } }>(
+                '/api/sessions/availability'
             );
             setAvailability(res.data);
         } catch (e) {
@@ -153,8 +153,8 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
             try {
                 setIsFetchingPlayer(true);
 
-                const res = await axios.get(
-                    "https://thunder-management.onrender.com/api/battles/thunder-player",
+                const res = await api.get(
+                    "/api/battles/thunder-player",
                     {
                         params: {
                             name: form.customerName.trim(),
@@ -202,8 +202,8 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
             try {
                 setIsSearching(true);
 
-                const res = await axios.get(
-                    "https://thunder-management.onrender.com/api/customers/search",
+                const res = await api.get(
+                    "/api/customers/search",
                     { params: { name: form.customerName.trim() } }
                 );
 
@@ -274,7 +274,7 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 return;
             }
 
-            await axios.post('https://thunder-management.onrender.com/api/sessions/start', {
+            await api.post('/api/sessions/start', {
                 ...form,
                 peopleCount: Number(form.peopleCount) || 1,
                 snackDetails: snackItems,

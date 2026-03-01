@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { defaultPricingConfig } from '../types/pricingConfig';
 import type { PricingConfig } from '../types/pricingConfig';
 import type { ReactNode } from 'react';
@@ -25,8 +25,7 @@ export const PricingProvider = ({ children }: { children: ReactNode }) => {
     const fetchConfig = async () => {
         setLoading(true);
         try {
-            const URL = import.meta.env.VITE_BACKEND_URL || 'https://thunder-management.onrender.com';
-            const response = await axios.get(`${URL}/api/pricing`);
+            const response = await api.get('/api/pricing');
             if (response.data) {
                 setConfig(response.data);
             }

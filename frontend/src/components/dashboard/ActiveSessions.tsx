@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../utils/api';
+import { API_BASE_URL } from '../../utils/api';
 import { FaPlaystation, FaDesktop, FaVrCardboard, FaGamepad } from 'react-icons/fa';
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import UpdateSessionModal from './UpdateSessionModal';
@@ -23,7 +24,7 @@ const DeviceIcon = ({ type, size = 14 }: { type: string, size?: number }) => {
 };
 
 
-const socket = io('https://thunder-management.onrender.com', {
+const socket = io(API_BASE_URL, {
   transports: ['websocket']
 });
 
@@ -55,7 +56,7 @@ const ActiveSessions = () => {
   --------------------------------------- */
   const fetchSessions = async () => {
     try {
-      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/active');
+      const res = await api.get('/api/sessions/active');
       setSessions(res.data);
     } catch (err) {
       console.error('Failed to load active sessions', err);
@@ -80,13 +81,13 @@ const ActiveSessions = () => {
 
     socket.on('session:updated', async () => {
       // Rare event → safe to refresh list once
-      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/active');
+      const res = await api.get('/api/sessions/active');
       setSessions(res.data);
     });
 
     socket.on('booking:converted', async () => {
       // booking → session happened
-      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/active');
+      const res = await api.get('/api/sessions/active');
       setSessions(res.data);
     });
 
@@ -124,7 +125,7 @@ const ActiveSessions = () => {
           processingRef.add(session.id);
           console.log(`Auto-completing session ${session.id} because time is up > 30s and fully paid`);
 
-          axios.post(`https://thunder-management.onrender.com/api/sessions/complete/${session.id}`)
+          api.post(`/api/sessions/complete/${session.id}`)
             .then(() => {
               // Success - socket will remove it, or we can manually remove
               // If selected session matches, close modal

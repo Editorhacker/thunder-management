@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaTrash, FaUserShield, FaUserTie, FaRedo, FaHistory } from 'react-icons/fa';
 import './DeletionLogs.css';
@@ -32,7 +32,7 @@ const DeletionLogs: React.FC = () => {
         try {
             // Simulate slight delay for better UX on fast networks
             await new Promise(r => setTimeout(r, 400));
-            const res = await axios.get(`https://thunder-management.onrender.com/api/owner/logs?range=${filter}`);
+            const res = await api.get(`/api/owner/logs?range=${filter}`);
             setLogs(res.data);
         } catch (err: any) {
             console.error('Failed to fetch deletion logs', err);
