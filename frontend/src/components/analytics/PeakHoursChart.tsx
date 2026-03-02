@@ -9,7 +9,7 @@ import {
     ResponsiveContainer
 } from 'recharts';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import api from '../../utils/api';
 
 interface PeakHourData {
     time: string;
@@ -23,7 +23,7 @@ const PeakHoursChart: React.FC = () => {
     useEffect(() => {
         const fetchPeakHours = async () => {
             try {
-                const res = await axios.get('https://thunder-management.onrender.com/api/analytics/peakhours');
+                const res = await api.get('/api/analytics/peakhours');
 
                 if (Array.isArray(res.data)) {
                     setData(res.data);

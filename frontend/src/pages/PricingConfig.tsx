@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { usePricing } from '../context/PricingContext';
 import { defaultPricingConfig } from '../types/pricingConfig';
 import type { PricingConfig } from '../types/pricingConfig';
@@ -21,7 +21,7 @@ import {
 } from 'react-icons/md';
 import './PricingConfig.css';
 
-const URL = import.meta.env.VITE_BACKEND_URL || 'https://thunder-management.onrender.com';
+// URL is now handled by the api utility
 
 type TabType = 'hours' | 'consoles' | 'specialized';
 
@@ -40,7 +40,7 @@ const PricingConfigPage = () => {
     const fetchConfig = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`${URL}/api/pricing`);
+            const response = await api.get('/api/pricing');
             if (response.data) {
                 setConfig(response.data);
             }
@@ -74,7 +74,7 @@ const PricingConfigPage = () => {
         setSaving(true);
         setSuccessMessage('');
         try {
-            await axios.put(`${URL}/api/pricing`, config);
+            await api.put('/api/pricing', config);
             refreshConfig();
             setSuccessMessage("Configuration Synced Successfully");
             setTimeout(() => setSuccessMessage(''), 4000);

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from '../../utils/api';
 import { motion } from "framer-motion";
 import { FaTimes, FaDesktop, FaGamepad, FaClock, FaUserPlus, FaPizzaSlice, FaMinus, FaPlus, FaChevronRight, FaTrash, FaVrCardboard, FaEdit, FaTools, FaBolt } from "react-icons/fa";
 import { GiSteeringWheel, GiCricketBat } from "react-icons/gi";
@@ -86,7 +86,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     });
 
     useEffect(() => {
-        axios.get('https://thunder-management.onrender.com/api/sessions/availability')
+        api.get('/api/sessions/availability')
             .then(res => setAvailability(res.data))
             .catch(err => console.error("Failed to fetch availability", err));
     }, []);
@@ -258,7 +258,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     const confirmDelete = async () => {
         try {
-            await axios.delete(`https://thunder-management.onrender.com/api/sessions/delete/${session.id}`, {
+            await api.delete(`/api/sessions/delete/${session.id}`, {
                 data: {
                     deletedBy: user?.role === 'owner' ? 'Owner' : 'Employee',
                     deletedByName: user?.username || 'Unknown'
@@ -290,8 +290,8 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                 payingPeopleNow: 0
             };
 
-            await axios.post(
-                `https://thunder-management.onrender.com/api/sessions/update/${session.id}`,
+            await api.post(
+                `/api/sessions/update/${session.id}`,
                 payload
             );
 
@@ -324,8 +324,8 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                 onlineCount: paymentMethod === 'online' ? payingNow : 0
             };
 
-            await axios.post(
-                `https://thunder-management.onrender.com/api/sessions/update/${session.id}`,
+            await api.post(
+                `/api/sessions/update/${session.id}`,
                 payload
             );
 

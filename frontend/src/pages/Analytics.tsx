@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     FaUserFriends,
@@ -70,7 +70,7 @@ const ChartCard = ({ children, title, subtitle, icon, colSpan = 1 }: any) => (
         style={{ gridColumn: `span ${colSpan}` }}
     >
         <SectionHeader title={title} subtitle={subtitle} icon={icon} />
-        <div style={{ position: 'relative', width: '100%', minHeight: '300px' }}>
+        <div style={{ position: 'relative', width: '100%', height: '350px' }}>
             {children}
         </div>
     </motion.div>
@@ -90,7 +90,7 @@ const Analytics: React.FC = () => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await axios.get('https://thunder-management.onrender.com/api/analytics/last-24-hours');
+                const res = await api.get('/api/analytics/last-24-hours');
                 setStats(res.data);
             } catch (err) {
                 console.error('Analytics fetch error', err);

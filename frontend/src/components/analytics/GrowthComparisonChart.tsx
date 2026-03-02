@@ -10,7 +10,7 @@ import {
     ResponsiveContainer
 } from 'recharts';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import api from '../../utils/api';
 
 interface GrowthData {
     day: string;
@@ -24,7 +24,7 @@ const GrowthComparisonChart: React.FC = () => {
     useEffect(() => {
         const fetchGrowth = async () => {
             try {
-                const res = await axios.get('https://thunder-management.onrender.com/api/analytics/monthly');
+                const res = await api.get('/api/analytics/monthly');
 
                 if (Array.isArray(res.data)) {
                     setData(res.data);
