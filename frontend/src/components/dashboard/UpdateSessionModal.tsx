@@ -74,7 +74,6 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     // Edit Mode State
     const [isEditMode, setIsEditMode] = useState(false);
     const [correctedPeopleCount, setCorrectedPeopleCount] = useState(session.peopleCount);
-    const [priceAdjustment, setPriceAdjustment] = useState(0);
 
 
     // Feature 1: Extend Time
@@ -149,7 +148,15 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     // ------------------- Calculations -------------------
 
     // Correction Logic: Recalculate what the ORIGINAL price should have been with corrected people
-    const originalPriceWithCorrection = calculateSessionPrice(
+    const baseOriginalCalculatedPrice = calculateSessionPrice(
+        session.duration || 0,
+        session.peopleCount,
+        currentDeviceMap,
+        new Date(session.startTime),
+        config
+    );
+
+    const correctedOriginalCalculatedPrice = calculateSessionPrice(
         session.duration || 0,
         isEditMode ? correctedPeopleCount : session.peopleCount,
         currentDeviceMap,
@@ -157,7 +164,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
         config
     );
 
-    const corePriceCorrectionDelta = originalPriceWithCorrection - session.price + priceAdjustment;
+    const corePriceCorrectionDelta = isEditMode ? (correctedOriginalCalculatedPrice - baseOriginalCalculatedPrice) : 0;
 
     // total people after adding members
     const basePeopleForUpdate = isEditMode ? correctedPeopleCount : session.peopleCount;
@@ -365,10 +372,10 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                     <div className="section-title-sm">
                                         <FaTools /> Session Override & Corrections
                                     </div>
-                                    <div className="item-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                    <div className="item-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
                                         <div className="input-group">
                                             <label className="input-label">Correct Original People Count</label>
-                                            <div className="minimal-counter" style={{ padding: '0.75rem', marginBottom: 0 }}>
+                                            <div className="minimal-counter" style={{ padding: '0.75rem', marginBottom: 0, maxWidth: '200px' }}>
                                                 <button className="counter-btn" style={{ width: '32px', height: '32px' }} onClick={() => setCorrectedPeopleCount(p => Math.max(1, p - 1))}>
                                                     <FaMinus size={10} />
                                                 </button>
@@ -377,19 +384,6 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                                                     <FaPlus size={10} />
                                                 </button>
                                             </div>
-                                        </div>
-                                        <div className="input-group">
-                                            <label className="input-label">Price Adjustment (e.g. -50 for return)</label>
-                                            <input
-                                                type="number"
-                                                className="modal-input"
-                                                placeholder="0"
-                                                value={priceAdjustment || ''}
-                                                onChange={e => setPriceAdjustment(Number(e.target.value))}
-                                            />
-                                            <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '4px', display: 'block' }}>
-                                                Use negative values to reduce price.
-                                            </span>
                                         </div>
                                     </div>
                                 </div>
