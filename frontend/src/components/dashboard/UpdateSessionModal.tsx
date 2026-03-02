@@ -42,7 +42,7 @@ interface ActiveSession {
     paidAmount?: number;
     remainingPeople?: number;  // Changed from paidPeople
     remainingAmount?: number;
-     snacks?: {
+    snacks?: {
         name: string;
         quantity: number;
     }[];
@@ -72,7 +72,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
     const [customPayAmount, setCustomPayAmount] = useState<number | ''>('');
     const [paymentMode, setPaymentMode] = useState<'equal' | 'custom'>('equal');
     const [snackPrices, setSnackPrices] = useState<Record<string, number>>({});
-    const [returnedSnacks, setReturnedSnacks] = useState<{name:string, quantity:number}[]>([]);
+    const [returnedSnacks, setReturnedSnacks] = useState<{ name: string, quantity: number }[]>([]);
 
     // Derived total people paying now
     const payingNow = paymentMode === 'equal' ? payingNowCount : 1;
@@ -97,24 +97,24 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
             .catch(err => console.error("Failed to fetch availability", err));
     }, []);
     useEffect(() => {
-    const fetchSnackPrices = async () => {
-        try {
-            const res = await api.get('/api/snacks');
-            
-            const priceMap: Record<string, number> = {};
+        const fetchSnackPrices = async () => {
+            try {
+                const res = await api.get('/api/snacks');
 
-            res.data.forEach((snack: any) => {
-                priceMap[snack.name] = snack.sellingPrice;
-            });
+                const priceMap: Record<string, number> = {};
 
-            setSnackPrices(priceMap);
-        } catch (err) {
-            console.error("Failed to load snack prices", err);
-        }
-    };
+                res.data.forEach((snack: any) => {
+                    priceMap[snack.name] = snack.sellingPrice;
+                });
 
-    fetchSnackPrices();
-}, []);
+                setSnackPrices(priceMap);
+            } catch (err) {
+                console.error("Failed to load snack prices", err);
+            }
+        };
+
+        fetchSnackPrices();
+    }, []);
 
     // Auto-close safety for modal if session expires while open
     useEffect(() => {
@@ -143,7 +143,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
     // Feature 3: Snacks (Dynamic)
     const [newSnackCost, setNewSnackCost] = useState(0);
-const [newSnackItems, setNewSnackItems] = useState<{ name: string; quantity: number }[]>([]);
+    const [newSnackItems, setNewSnackItems] = useState<{ name: string; quantity: number }[]>([]);
     // ------------------- Calculations -------------------
 
     // Convert session.devices array ({ type, id }) to map for logic (Record<string, number[]>)
@@ -172,9 +172,9 @@ const [newSnackItems, setNewSnackItems] = useState<{ name: string; quantity: num
     // ------------------- Calculations -------------------
 
     const returnedSnackPrice = returnedSnacks.reduce((total, returned) => {
-    const price = snackPrices[returned.name] || 0;
-    return total + (price * returned.quantity);
-}, 0);
+        const price = snackPrices[returned.name] || 0;
+        return total + (price * returned.quantity);
+    }, 0);
     // Correction Logic: Recalculate what the ORIGINAL price should have been with corrected people
     const baseOriginalCalculatedPrice = calculateSessionPrice(
         session.duration || 0,
@@ -236,11 +236,11 @@ const [newSnackItems, setNewSnackItems] = useState<{ name: string; quantity: num
 
     /* ---------- STEP 4: FINAL NEW CHARGES ---------- */
     const chargesAsString =
-    corePriceCorrectionDelta +
-    joinCost +
-    extraTimeCost +
-    newSnackCost -
-    returnedSnackPrice;
+        corePriceCorrectionDelta +
+        joinCost +
+        extraTimeCost +
+        newSnackCost -
+        returnedSnackPrice;
 
     /* ---------- TOTAL SESSION VALUE AFTER UPDATE ---------- */
     const totalToPay = originalStoredTotal + chargesAsString;
@@ -403,94 +403,105 @@ const [newSnackItems, setNewSnackItems] = useState<{ name: string; quantity: num
                             {/* Edit Session Correction */}
                             {isEditMode && (
 
-<div className="edit-correction-section">
+                                <div className="edit-correction-section">
 
-{Array.isArray(session.snacks) && session.snacks.length > 0 && (
+                                    {Array.isArray(session.snacks) && session.snacks.length > 0 && (
 
-<section>
-<h3>Returned Snacks</h3>
+                                        <div className="returned-snacks-container">
+                                            <div className="section-title-sm">
+                                                <FaPizzaSlice /> Returned Snacks
+                                            </div>
+                                            <div className="returned-snacks-list">
+                                                {session.snacks.map((snack: any, index: number) => {
+                                                    const currentQuantity = returnedSnacks.find(s => s.name === snack.name)?.quantity || 0;
+                                                    return (
+                                                        <div key={index} className="returned-snack-card">
+                                                            <div className="returned-snack-info">
+                                                                <span className="returned-snack-name">{snack.name}</span>
+                                                                <span className="returned-snack-limit">Available: {snack.quantity}</span>
+                                                            </div>
+                                                            <div className="returned-snack-controls">
+                                                                <button
+                                                                    className="returned-snack-btn"
+                                                                    title="Decrease"
+                                                                    disabled={currentQuantity <= 0}
+                                                                    onClick={() => {
+                                                                        setReturnedSnacks(prev => {
+                                                                            const existing = prev.find(s => s.name === snack.name)
+                                                                            if (existing) {
+                                                                                return prev.map(s => s.name === snack.name ? { ...s, quantity: Math.max(0, s.quantity - 1) } : s)
+                                                                            }
+                                                                            return prev
+                                                                        })
+                                                                    }}
+                                                                >
+                                                                    <FaMinus size={10} />
+                                                                </button>
 
-{session.snacks.map((snack:any, index:number)=>(
-<div key={index} style={{display:"flex",justifyContent:"space-between",marginBottom:"8px"}}>
+                                                                <span className="returned-snack-count">
+                                                                    {currentQuantity}
+                                                                </span>
 
-<span>{snack.name}</span>
+                                                                <button
+                                                                    className="returned-snack-btn"
+                                                                    title="Increase"
+                                                                    disabled={currentQuantity >= snack.quantity}
+                                                                    onClick={() => {
+                                                                        setReturnedSnacks(prev => {
+                                                                            const existing = prev.find(s => s.name === snack.name)
+                                                                            if (existing) {
+                                                                                return prev.map(s => s.name === snack.name ? { ...s, quantity: Math.min(snack.quantity, s.quantity + 1) } : s)
+                                                                            }
+                                                                            return [...prev, { name: snack.name, quantity: 1 }]
+                                                                        })
+                                                                    }}
+                                                                >
+                                                                    <FaPlus size={10} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
 
-<div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                                    )}
 
-<button
-onClick={()=>{
-setReturnedSnacks(prev=>{
-const existing = prev.find(s=>s.name===snack.name)
-if(existing){
-return prev.map(s=>s.name===snack.name?{...s,quantity:Math.max(0,s.quantity-1)}:s)
-}
-return prev
-})
-}}
->-</button>
+                                    <div className="section-title-sm">
+                                        <FaTools /> Session Override & Corrections
+                                    </div>
 
-<span>
-{returnedSnacks.find(s=>s.name===snack.name)?.quantity || 0}
-</span>
+                                    <div className="item-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+                                        <div className="input-group">
 
-<button
-onClick={()=>{
-setReturnedSnacks(prev=>{
-const existing = prev.find(s=>s.name===snack.name)
+                                            <label className="input-label">Correct Original People Count</label>
 
-if(existing){
-return prev.map(s=>s.name===snack.name?{...s,quantity:Math.min(snack.quantity,s.quantity+1)}:s)
-}
+                                            <div className="minimal-counter" style={{ padding: '0.75rem', marginBottom: 0, maxWidth: '200px' }}>
 
-return [...prev,{name:snack.name,quantity:1}]
-})
-}}
->+</button>
+                                                <button className="counter-btn"
+                                                    onClick={() => setCorrectedPeopleCount(p => Math.max(1, p - 1))}
+                                                >
+                                                    <FaMinus size={10} />
+                                                </button>
 
-</div>
+                                                <div className="counter-value" style={{ fontSize: '1.5rem' }}>
+                                                    {correctedPeopleCount}
+                                                </div>
 
-</div>
-))}
+                                                <button className="counter-btn"
+                                                    onClick={() => setCorrectedPeopleCount(p => p + 1)}
+                                                >
+                                                    <FaPlus size={10} />
+                                                </button>
 
-</section>
+                                            </div>
 
-)}
+                                        </div>
+                                    </div>
 
-<div className="section-title-sm">
-<FaTools /> Session Override & Corrections
-</div>
+                                </div>
 
-<div className="item-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
-<div className="input-group">
-
-<label className="input-label">Correct Original People Count</label>
-
-<div className="minimal-counter" style={{ padding: '0.75rem', marginBottom: 0, maxWidth: '200px' }}>
-
-<button className="counter-btn"
-onClick={() => setCorrectedPeopleCount(p => Math.max(1, p - 1))}
->
-<FaMinus size={10} />
-</button>
-
-<div className="counter-value" style={{ fontSize: '1.5rem' }}>
-{correctedPeopleCount}
-</div>
-
-<button className="counter-btn"
-onClick={() => setCorrectedPeopleCount(p => p + 1)}
->
-<FaPlus size={10} />
-</button>
-
-</div>
-
-</div>
-</div>
-
-</div>
-
-)}
+                            )}
                             <section>
                                 <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
                                     <FaClock style={{ display: 'inline', marginRight: '6px' }} /> Update Time

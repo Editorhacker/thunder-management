@@ -306,7 +306,7 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
   };
 
   return (
-    <div className="booking-modal-overlay" onClick={onClose}>
+    <div className="booking-modal-overlay">
       <motion.div
         className="booking-modal-container"
         onClick={(e) => e.stopPropagation()}
