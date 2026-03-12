@@ -336,6 +336,38 @@ input[type=number] {
     font-weight: 700;
 }
 
+/* Price Toggle Group */
+.price-toggle-group {
+    display: flex;
+    background: rgba(15, 23, 42, 0.4);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.price-toggle-btn {
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #94a3b8;
+}
+
+.price-toggle-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.price-toggle-btn.active {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
 /* Horizontal Table Layout for Device Prices */
 .price-comparison-table {
     width: 100%;

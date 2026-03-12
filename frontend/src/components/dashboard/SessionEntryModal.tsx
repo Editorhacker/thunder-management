@@ -547,7 +547,10 @@ const SessionEntryModal: React.FC<Props> = ({ isOpen, onClose }) => {
                                                 style={{ paddingLeft: '2.5rem' }}
                                                 onChange={e => {
                                                     let val = e.target.value.replace(/[^0-9:]/g, "");
-                                                    if (val.length === 2 && !val.includes(":")) val = val + ":";
+                                                    // Auto-colon if user types 2 digits
+                                                    if (val.length === 2 && !val.includes(":") && !form.duration.includes(":")) {
+                                                        val = val + ":";
+                                                    }
                                                     if (val.length > 5) return;
                                                     updateField("duration", val);
                                                 }}

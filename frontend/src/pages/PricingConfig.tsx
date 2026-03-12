@@ -32,6 +32,7 @@ const PricingConfigPage = () => {
     const [saving, setSaving] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
     const [activeTab, setActiveTab] = useState<TabType>('hours');
+    const [dayPriceTab, setDayPriceTab] = useState<'monWed' | 'thursday' | 'friSun'>('monWed');
 
     useEffect(() => {
         fetchConfig();
@@ -42,7 +43,20 @@ const PricingConfigPage = () => {
         try {
             const response = await api.get('/api/pricing');
             if (response.data) {
-                setConfig(response.data);
+                // Ensure all new fields exist by merging with default
+                const merged = JSON.parse(JSON.stringify(defaultPricingConfig));
+
+                // Shallow merge top-level sections
+                Object.keys(response.data).forEach(key => {
+                    const k = key as keyof PricingConfig;
+                    if (response.data[k] && typeof response.data[k] === 'object' && !Array.isArray(response.data[k])) {
+                        merged[k] = { ...merged[k], ...response.data[k] };
+                    } else {
+                        merged[k] = response.data[k];
+                    }
+                });
+
+                setConfig(merged);
             }
         } catch (err) {
             console.error("Error fetching admin pricing config", err);
@@ -53,19 +67,20 @@ const PricingConfigPage = () => {
 
     const handleChange = (section: keyof PricingConfig, field: string, value: any) => {
         setConfig(prev => {
-            const updatedSection = { ...prev[section] as any };
+            const newConfig = { ...prev };
+            const path = field.split('.');
 
-            if (field.includes('.')) {
-                const [top, bottom] = field.split('.');
-                updatedSection[top] = { ...updatedSection[top], [bottom]: value };
-            } else {
-                updatedSection[field] = value;
+            let current: any = { ...newConfig[section] };
+            newConfig[section] = current;
+
+            for (let i = 0; i < path.length - 1; i++) {
+                const step = path[i];
+                current[step] = { ...current[step] };
+                current = current[step];
             }
 
-            return {
-                ...prev,
-                [section]: updatedSection
-            };
+            current[path[path.length - 1]] = value;
+            return newConfig;
         });
     };
 
@@ -136,57 +151,85 @@ const PricingConfigPage = () => {
             </div>
 
             <div className="schedule-container">
-                {/* WEEKDAY SECTION */}
+                {/* MON-WED SECTION */}
                 <div className="day-schedule-card">
                     <div className="day-header-dash">
                         <MdEventAvailable size={24} style={{ color: '#3b82f6' }} />
-                        <h3>Weekdays <span style={{ color: '#64748b', fontWeight: 500, fontSize: '0.9rem', marginLeft: '8px' }}>Mon — Fri</span></h3>
+                        <h3>Week Start <span style={{ color: '#64748b', fontWeight: 500, fontSize: '0.9rem', marginLeft: '8px' }}>Monday — Wednesday</span></h3>
                     </div>
 
                     <div className="shifts-timeline">
                         <div className="shift-row shift-happy">
                             <div className="shift-label"><MdFlashOn /> Happy Hour</div>
                             <div className="shift-controls">
-                                <TimePicker hour={config.happyHour.weekdayStartHour} minute={config.happyHour.weekdayStartMinute} onChange={(h, m) => { handleChange('happyHour', 'weekdayStartHour', h); handleChange('happyHour', 'weekdayStartMinute', m); }} />
+                                <TimePicker hour={config.happyHour.monWedStartHour} minute={config.happyHour.monWedStartMinute} onChange={(h, m) => { handleChange('happyHour', 'monWedStartHour', h); handleChange('happyHour', 'monWedStartMinute', m); }} />
                                 <MdKeyboardArrowRight className="shift-arrow-icon" />
-                                <TimePicker hour={config.happyHour.weekdayEndHour} minute={config.happyHour.weekdayEndMinute} onChange={(h, m) => { handleChange('happyHour', 'weekdayEndHour', h); handleChange('happyHour', 'weekdayEndMinute', m); }} />
+                                <TimePicker hour={config.happyHour.monWedEndHour} minute={config.happyHour.monWedEndMinute} onChange={(h, m) => { handleChange('happyHour', 'monWedEndHour', h); handleChange('happyHour', 'monWedEndMinute', m); }} />
                             </div>
                         </div>
 
                         <div className="shift-row shift-normal">
                             <div className="shift-label"><MdAccessTime /> Normal</div>
                             <div className="shift-controls">
-                                <TimePicker hour={config.normalHour.weekdayStartHour} minute={config.normalHour.weekdayStartMinute} onChange={(h, m) => { handleChange('normalHour', 'weekdayStartHour', h); handleChange('normalHour', 'weekdayStartMinute', m); }} />
+                                <TimePicker hour={config.normalHour.monWedStartHour} minute={config.normalHour.monWedStartMinute} onChange={(h, m) => { handleChange('normalHour', 'monWedStartHour', h); handleChange('normalHour', 'monWedStartMinute', m); }} />
                                 <MdKeyboardArrowRight className="shift-arrow-icon" />
-                                <TimePicker hour={config.normalHour.weekdayEndHour} minute={config.normalHour.weekdayEndMinute} onChange={(h, m) => { handleChange('normalHour', 'weekdayEndHour', h); handleChange('normalHour', 'weekdayEndMinute', m); }} />
+                                <TimePicker hour={config.normalHour.monWedEndHour} minute={config.normalHour.monWedEndMinute} onChange={(h, m) => { handleChange('normalHour', 'monWedEndHour', h); handleChange('normalHour', 'monWedEndMinute', m); }} />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* WEEKEND SECTION */}
+                {/* THURSDAY SECTION */}
                 <div className="day-schedule-card" style={{ borderLeftColor: '#facc15' }}>
                     <div className="day-header-dash">
                         <MdEventAvailable size={24} style={{ color: '#facc15' }} />
-                        <h3>Weekends <span style={{ color: '#64748b', fontWeight: 500, fontSize: '0.9rem', marginLeft: '8px' }}>Sat — Sun</span></h3>
+                        <h3>Fun Thursday <span style={{ color: '#64748b', fontWeight: 500, fontSize: '0.9rem', marginLeft: '8px' }}>Special Override</span></h3>
                     </div>
 
                     <div className="shifts-timeline">
                         <div className="shift-row shift-happy">
                             <div className="shift-label"><MdFlashOn /> Happy Hour</div>
                             <div className="shift-controls">
-                                <TimePicker hour={config.happyHour.weekendStartHour} minute={config.happyHour.weekendStartMinute} onChange={(h, m) => { handleChange('happyHour', 'weekendStartHour', h); handleChange('happyHour', 'weekendStartMinute', m); }} />
+                                <TimePicker hour={config.happyHour.thursdayStartHour} minute={config.happyHour.thursdayStartMinute} onChange={(h, m) => { handleChange('happyHour', 'thursdayStartHour', h); handleChange('happyHour', 'thursdayStartMinute', m); }} />
                                 <MdKeyboardArrowRight className="shift-arrow-icon" />
-                                <TimePicker hour={config.happyHour.weekendEndHour} minute={config.happyHour.weekendEndMinute} onChange={(h, m) => { handleChange('happyHour', 'weekendEndHour', h); handleChange('happyHour', 'weekendEndMinute', m); }} />
+                                <TimePicker hour={config.happyHour.thursdayEndHour} minute={config.happyHour.thursdayEndMinute} onChange={(h, m) => { handleChange('happyHour', 'thursdayEndHour', h); handleChange('happyHour', 'thursdayEndMinute', m); }} />
                             </div>
                         </div>
 
                         <div className="shift-row shift-normal">
                             <div className="shift-label"><MdAccessTime /> Normal</div>
                             <div className="shift-controls">
-                                <TimePicker hour={config.normalHour.weekendStartHour} minute={config.normalHour.weekendStartMinute} onChange={(h, m) => { handleChange('normalHour', 'weekendStartHour', h); handleChange('normalHour', 'weekendStartMinute', m); }} />
+                                <TimePicker hour={config.normalHour.thursdayStartHour} minute={config.normalHour.thursdayStartMinute} onChange={(h, m) => { handleChange('normalHour', 'thursdayStartHour', h); handleChange('normalHour', 'thursdayStartMinute', m); }} />
                                 <MdKeyboardArrowRight className="shift-arrow-icon" />
-                                <TimePicker hour={config.normalHour.weekendEndHour} minute={config.normalHour.weekendEndMinute} onChange={(h, m) => { handleChange('normalHour', 'weekendEndHour', h); handleChange('normalHour', 'weekendEndMinute', m); }} />
+                                <TimePicker hour={config.normalHour.thursdayEndHour} minute={config.normalHour.thursdayEndMinute} onChange={(h, m) => { handleChange('normalHour', 'thursdayEndHour', h); handleChange('normalHour', 'thursdayEndMinute', m); }} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* FRI-SUN SECTION */}
+                <div className="day-schedule-card" style={{ borderLeftColor: '#10b981' }}>
+                    <div className="day-header-dash">
+                        <MdEventAvailable size={24} style={{ color: '#10b981' }} />
+                        <h3>Week Finish <span style={{ color: '#64748b', fontWeight: 500, fontSize: '0.9rem', marginLeft: '8px' }}>Friday — Sunday</span></h3>
+                    </div>
+
+                    <div className="shifts-timeline">
+                        <div className="shift-row shift-happy">
+                            <div className="shift-label"><MdFlashOn /> Happy Hour</div>
+                            <div className="shift-controls">
+                                <TimePicker hour={config.happyHour.friSunStartHour} minute={config.happyHour.friSunStartMinute} onChange={(h, m) => { handleChange('happyHour', 'friSunStartHour', h); handleChange('happyHour', 'friSunStartMinute', m); }} />
+                                <MdKeyboardArrowRight className="shift-arrow-icon" />
+                                <TimePicker hour={config.happyHour.friSunEndHour} minute={config.happyHour.friSunEndMinute} onChange={(h, m) => { handleChange('happyHour', 'friSunEndHour', h); handleChange('happyHour', 'friSunEndMinute', m); }} />
+                            </div>
+                        </div>
+
+                        <div className="shift-row shift-normal">
+                            <div className="shift-label"><MdAccessTime /> Normal</div>
+                            <div className="shift-controls">
+                                <TimePicker hour={config.normalHour.friSunStartHour} minute={config.normalHour.friSunStartMinute} onChange={(h, m) => { handleChange('normalHour', 'friSunStartHour', h); handleChange('normalHour', 'friSunStartMinute', m); }} />
+                                <MdKeyboardArrowRight className="shift-arrow-icon" />
+                                <TimePicker hour={config.normalHour.friSunEndHour} minute={config.normalHour.friSunEndMinute} onChange={(h, m) => { handleChange('normalHour', 'friSunEndHour', h); handleChange('normalHour', 'friSunEndMinute', m); }} />
                             </div>
                         </div>
                     </div>
@@ -213,93 +256,117 @@ const PricingConfigPage = () => {
         </motion.div>
     );
 
-    const renderConsolesTab = () => (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <div className="settings-group">
-                <div className="settings-group-header">
-                    <MdSettingsInputComponent style={{ color: '#3b82f6' }} /> Console & PC Rate Matrix
+    const renderConsolesTab = () => {
+        const priceSet = dayPriceTab === 'monWed' ? config.monWedPrices :
+            dayPriceTab === 'thursday' ? config.thursdayPrices :
+                config.friSunPrices;
+
+        if (!priceSet) return <div className="helper-box"><div className="helper-text">Loading price matrix...</div></div>;
+
+        const prefix = dayPriceTab === 'monWed' ? 'monWedPrices' :
+            dayPriceTab === 'thursday' ? 'thursdayPrices' :
+                'friSunPrices';
+
+        return (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                <div className="settings-group">
+                    <div className="settings-group-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <MdSettingsInputComponent style={{ color: '#3b82f6' }} /> Console & PC Rate Matrix
+                        </div>
+                        <div className="price-toggle-group">
+                            <button className={`price-toggle-btn ${dayPriceTab === 'monWed' ? 'active' : ''}`} onClick={() => setDayPriceTab('monWed')}>Mon-Wed</button>
+                            <button className={`price-toggle-btn ${dayPriceTab === 'thursday' ? 'active' : ''}`} style={{ borderColor: dayPriceTab === 'thursday' ? '#facc15' : 'transparent' }} onClick={() => setDayPriceTab('thursday')}>Thursday</button>
+                            <button className={`price-toggle-btn ${dayPriceTab === 'friSun' ? 'active' : ''}`} style={{ borderColor: dayPriceTab === 'friSun' ? '#10b981' : 'transparent' }} onClick={() => setDayPriceTab('friSun')}>Fri-Sun</button>
+                        </div>
+                    </div>
+                    <table className="price-comparison-table">
+                        <thead>
+                            <tr>
+                                <th style={{ width: '220px' }}>Platform Device</th>
+                                <th>Max 30m</th>
+                                <th>Base (60m)</th>
+                                <th>Multi-Mod</th>
+                                <th>Extra Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {/* PS5 */}
+                            <tr className="price-row-card">
+                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#facc15' }} /> PS5 (Happy Hour)</div></td>
+                                <td><input type="number" value={priceSet.happyHour.ps5.less30m} onChange={e => handleChange(prefix, 'happyHour.ps5.less30m', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.happyHour.ps5.onePerson} onChange={e => handleChange(prefix, 'happyHour.ps5.onePerson', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.happyHour.ps5.multiplePersonBaseMod} onChange={e => handleChange(prefix, 'happyHour.ps5.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.happyHour.ps5.extra30mMod} onChange={e => handleChange(prefix, 'happyHour.ps5.extra30mMod', Number(e.target.value))} className="dashboard-input" /></td>
+                            </tr>
+                            <tr className="price-row-card">
+                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#60a5fa' }} /> PS5 (Normal)</div></td>
+                                <td><span className="unit-label">N/A</span></td>
+                                <td><input type="number" value={priceSet.normalHour.ps5.onePerson} onChange={e => handleChange(prefix, 'normalHour.ps5.onePerson', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.normalHour.ps5.multiplePersonBaseMod} onChange={e => handleChange(prefix, 'normalHour.ps5.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.normalHour.ps5.extra30mMod} onChange={e => handleChange(prefix, 'normalHour.ps5.extra30mMod', Number(e.target.value))} className="dashboard-input" /></td>
+                            </tr>
+
+                            {/* PC */}
+                            <tr className="price-row-card">
+                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdComputer style={{ color: '#facc15' }} /> PC (Happy Hour)</div></td>
+                                <td><input type="number" value={priceSet.happyHour.pc.less30m} onChange={e => handleChange(prefix, 'happyHour.pc.less30m', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.happyHour.pc.base} onChange={e => handleChange(prefix, 'happyHour.pc.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><span className="unit-label">N/A</span></td>
+                                <td><input type="number" value={priceSet.happyHour.pc.extra30m} onChange={e => handleChange(prefix, 'happyHour.pc.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
+                            </tr>
+                            <tr className="price-row-card">
+                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdComputer style={{ color: '#60a5fa' }} /> PC (Normal)</div></td>
+                                <td><span className="unit-label">N/A</span></td>
+                                <td><input type="number" value={priceSet.normalHour.pc.base} onChange={e => handleChange(prefix, 'normalHour.pc.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><span className="unit-label">N/A</span></td>
+                                <td><input type="number" value={priceSet.normalHour.pc.extra30m} onChange={e => handleChange(prefix, 'normalHour.pc.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
+                            </tr>
+
+                            {/* Wheel */}
+                            <tr className="price-row-card">
+                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#facc15' }} /> Wheel (Happy Hour)</div></td>
+                                <td><input type="number" value={priceSet.happyHour.wheel.less30m} onChange={e => handleChange(prefix, 'happyHour.wheel.less30m', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.happyHour.wheel.base} onChange={e => handleChange(prefix, 'happyHour.wheel.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><span className="unit-label">N/A</span></td>
+                                <td><input type="number" value={priceSet.happyHour.wheel.extra60m} onChange={e => handleChange(prefix, 'happyHour.wheel.extra60m', Number(e.target.value))} className="dashboard-input" /></td>
+                            </tr>
+                            <tr className="price-row-card">
+                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#60a5fa' }} /> Wheel (Normal)</div></td>
+                                <td><input type="number" value={priceSet.normalHour.wheel.less30m} onChange={e => handleChange(prefix, 'normalHour.wheel.less30m', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={priceSet.normalHour.wheel.base} onChange={e => handleChange(prefix, 'normalHour.wheel.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><span className="unit-label">N/A</span></td>
+                                <td><input type="number" value={priceSet.normalHour.wheel.extra30m} onChange={e => handleChange(prefix, 'normalHour.wheel.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
+                            </tr>
+
+                            {/* Fun Night (Consolidated) */}
+                            <tr className="price-row-card" style={{ borderTop: '2px solid rgba(236, 72, 153, 0.2)' }}>
+                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdShield style={{ color: '#ec4899' }} /> PS5 (Fun Night)</div></td>
+                                <td><span className="unit-label">N/A</span></td>
+                                <td><input type="number" value={config.funNightPrices.ps5.onePerson} onChange={e => handleChange('funNightPrices', 'ps5.onePerson', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={config.funNightPrices.ps5.multiplePersonBaseMod} onChange={e => handleChange('funNightPrices', 'ps5.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={config.funNightPrices.ps5.extra30mMod} onChange={e => handleChange('funNightPrices', 'ps5.extra30mMod', Number(e.target.value))} className="dashboard-input" /></td>
+                            </tr>
+                            <tr className="price-row-card">
+                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdShield style={{ color: '#ec4899' }} /> PC (Fun Night)</div></td>
+                                <td><span className="unit-label">N/A</span></td>
+                                <td><input type="number" value={config.funNightPrices.pc.base} onChange={e => handleChange('funNightPrices', 'pc.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><span className="unit-label">N/A</span></td>
+                                <td><input type="number" value={config.funNightPrices.pc.extra30m} onChange={e => handleChange('funNightPrices', 'pc.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
+                            </tr>
+                            <tr className="price-row-card">
+                                <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdShield style={{ color: '#ec4899' }} /> Wheel (Fun Night)</div></td>
+                                <td><input type="number" value={config.funNightPrices.wheel.less30m} onChange={e => handleChange('funNightPrices', 'wheel.less30m', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><input type="number" value={config.funNightPrices.wheel.base} onChange={e => handleChange('funNightPrices', 'wheel.base', Number(e.target.value))} className="dashboard-input" /></td>
+                                <td><span className="unit-label">N/A</span></td>
+                                <td><input type="number" value={config.funNightPrices.wheel.extra30m} onChange={e => handleChange('funNightPrices', 'wheel.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <table className="price-comparison-table">
-                    <thead>
-                        <tr>
-                            <th style={{ width: '220px' }}>Platform Device</th>
-                            <th>Max 30m</th>
-                            <th>Base (60m)</th>
-                            <th>Multi-Mod</th>
-                            <th>Extra Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr className="price-row-card">
-                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#facc15' }} /> PS5 (Happy Hour)</div></td>
-                            <td><input type="number" value={config.happyHourPrices.ps5.less30m} onChange={e => handleChange('happyHourPrices', 'ps5.less30m', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><input type="number" value={config.happyHourPrices.ps5.onePersonBase} onChange={e => handleChange('happyHourPrices', 'ps5.onePersonBase', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><input type="number" value={config.happyHourPrices.ps5.multiplePersonBaseMod} onChange={e => handleChange('happyHourPrices', 'ps5.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><input type="number" value={config.happyHourPrices.ps5.extra30mMod} onChange={e => handleChange('happyHourPrices', 'ps5.extra30mMod', Number(e.target.value))} className="dashboard-input" /></td>
-                        </tr>
-                        <tr className="price-row-card">
-                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#60a5fa' }} /> PS5 (Normal)</div></td>
-                            <td><span className="unit-label">N/A</span></td>
-                            <td><input type="number" value={config.normalHourPrices.ps5.onePerson} onChange={e => handleChange('normalHourPrices', 'ps5.onePerson', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><input type="number" value={config.normalHourPrices.ps5.multiplePersonBaseMod} onChange={e => handleChange('normalHourPrices', 'ps5.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><input type="number" value={config.normalHourPrices.ps5.extra30mMod} onChange={e => handleChange('normalHourPrices', 'ps5.extra30mMod', Number(e.target.value))} className="dashboard-input" /></td>
-                        </tr>
-                        <tr className="price-row-card">
-                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#ec4899' }} /> PS5 (Fun Night)</div></td>
-                            <td><span className="unit-label">N/A</span></td>
-                            <td><input type="number" value={config.funNightPrices.ps5.onePerson} onChange={e => handleChange('funNightPrices', 'ps5.onePerson', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><input type="number" value={config.funNightPrices.ps5.multiplePersonBaseMod} onChange={e => handleChange('funNightPrices', 'ps5.multiplePersonBaseMod', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><input type="number" value={config.funNightPrices.ps5.extra30mMod} onChange={e => handleChange('funNightPrices', 'ps5.extra30mMod', Number(e.target.value))} className="dashboard-input" /></td>
-                        </tr>
-
-                        <tr className="price-row-card">
-                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdComputer style={{ color: '#facc15' }} /> PC (Happy Hour)</div></td>
-                            <td><input type="number" value={config.happyHourPrices.pc.less30m} onChange={e => handleChange('happyHourPrices', 'pc.less30m', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><input type="number" value={config.happyHourPrices.pc.base} onChange={e => handleChange('happyHourPrices', 'pc.base', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><span className="unit-label">N/A</span></td>
-                            <td><input type="number" value={config.happyHourPrices.pc.extra30m} onChange={e => handleChange('happyHourPrices', 'pc.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
-                        </tr>
-                        <tr className="price-row-card">
-                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdComputer style={{ color: '#60a5fa' }} /> PC (Normal)</div></td>
-                            <td><span className="unit-label">N/A</span></td>
-                            <td><input type="number" value={config.normalHourPrices.pc.base} onChange={e => handleChange('normalHourPrices', 'pc.base', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><span className="unit-label">N/A</span></td>
-                            <td><input type="number" value={config.normalHourPrices.pc.extra30m} onChange={e => handleChange('normalHourPrices', 'pc.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
-                        </tr>
-                        <tr className="price-row-card">
-                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdComputer style={{ color: '#ec4899' }} /> PC (Fun Night)</div></td>
-                            <td><span className="unit-label">N/A</span></td>
-                            <td><input type="number" value={config.funNightPrices.pc.base} onChange={e => handleChange('funNightPrices', 'pc.base', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><span className="unit-label">N/A</span></td>
-                            <td><input type="number" value={config.funNightPrices.pc.extra30m} onChange={e => handleChange('funNightPrices', 'pc.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
-                        </tr>
-
-                        <tr className="price-row-card">
-                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#facc15' }} /> Wheel (Happy Hour)</div></td>
-                            <td><input type="number" value={config.happyHourPrices.wheel.less30m} onChange={e => handleChange('happyHourPrices', 'wheel.less30m', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><input type="number" value={config.happyHourPrices.wheel.base} onChange={e => handleChange('happyHourPrices', 'wheel.base', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><span className="unit-label">N/A</span></td>
-                            <td><input type="number" value={config.happyHourPrices.wheel.extra60m} onChange={e => handleChange('happyHourPrices', 'wheel.extra60m', Number(e.target.value))} className="dashboard-input" /></td>
-                        </tr>
-                        <tr className="price-row-card">
-                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#60a5fa' }} /> Wheel (Normal)</div></td>
-                            <td><input type="number" value={config.normalHourPrices.wheel.less30m} onChange={e => handleChange('normalHourPrices', 'wheel.less30m', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><input type="number" value={config.normalHourPrices.wheel.base} onChange={e => handleChange('normalHourPrices', 'wheel.base', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><span className="unit-label">N/A</span></td>
-                            <td><input type="number" value={config.normalHourPrices.wheel.extra30m} onChange={e => handleChange('normalHourPrices', 'wheel.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
-                        </tr>
-                        <tr className="price-row-card">
-                            <td><div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdSettingsInputComponent style={{ color: '#ec4899' }} /> Wheel (Fun Night)</div></td>
-                            <td><input type="number" value={config.funNightPrices.wheel.less30m} onChange={e => handleChange('funNightPrices', 'wheel.less30m', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><input type="number" value={config.funNightPrices.wheel.base} onChange={e => handleChange('funNightPrices', 'wheel.base', Number(e.target.value))} className="dashboard-input" /></td>
-                            <td><span className="unit-label">N/A</span></td>
-                            <td><input type="number" value={config.funNightPrices.wheel.extra30m} onChange={e => handleChange('funNightPrices', 'wheel.extra30m', Number(e.target.value))} className="dashboard-input" /></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </motion.div>
-    );
+            </motion.div>
+        );
+    };
 
     const renderSpecializedTab = () => (
         <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>

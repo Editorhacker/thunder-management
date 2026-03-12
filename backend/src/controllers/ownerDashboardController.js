@@ -11,6 +11,31 @@ const toDate = (value) => {
   return new Date(value); // ISO string
 };
 
+// Helper to get Pricing Config
+const getPricingConfig = async () => {
+  try {
+    const doc = await db.collection('settings').doc('pricing').get();
+    if (doc.exists) {
+      const data = doc.data();
+      const { getDefaultPricingConfig } = require('./pricingController');
+      const defaults = getDefaultPricingConfig();
+      const merged = { ...defaults };
+      Object.keys(data).forEach(key => {
+        if (data[key] && typeof data[key] === 'object' && !Array.isArray(data[key])) {
+          merged[key] = { ...merged[key], ...data[key] };
+        } else {
+          merged[key] = data[key];
+        }
+      });
+      return merged;
+    }
+  } catch (err) {
+    console.error("Error fetching pricing for owner logic:", err);
+  }
+  const { getDefaultPricingConfig } = require('./pricingController');
+  return getDefaultPricingConfig();
+};
+
 /**
  * 🔧 Helper: get start date from range
  */
@@ -207,6 +232,8 @@ const getRevenueByMachine = async (req, res) => {
       metabat: 0
     };
 
+    const pricingConfig = await getPricingConfig();
+
     snapshot.forEach(doc => {
       const s = doc.data();
 
@@ -220,7 +247,8 @@ const getRevenueByMachine = async (req, res) => {
         s.duration,
         s.peopleCount,
         s.devices,
-        createdAt
+        createdAt,
+        pricingConfig
       );
 
       Object.keys(totals).forEach(k => {

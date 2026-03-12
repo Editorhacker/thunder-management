@@ -395,187 +395,207 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
 
                 {/* Content */}
                 <div className="content-wrapper custom-scrollbar" style={{ paddingTop: '1rem', paddingBottom: '2rem' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) 380px', gap: '2rem', alignItems: 'start' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: '2rem', alignItems: 'start' }}>
 
                         {/* LEFT COLUMN: Time + Players + Snacks */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
-                            {/* Edit Session Correction */}
-                            {isEditMode && (
+                            <div style={{ display: 'flex', flexDirection: 'row', gap: '2rem' }}>
 
-                                <div className="edit-correction-section">
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '50%' }}>
 
-                                    {Array.isArray(session.snacks) && session.snacks.length > 0 && (
+                                    {isEditMode && (
 
-                                        <div className="returned-snacks-container">
+                                        <div className="edit-correction-section">
+
+                                            {Array.isArray(session.snacks) && session.snacks.length > 0 && (
+
+                                                <div className="returned-snacks-container">
+                                                    <div className="section-title-sm">
+                                                        <FaPizzaSlice /> Returned Snacks
+                                                    </div>
+                                                    <div className="returned-snacks-list">
+                                                        {session.snacks.map((snack: any, index: number) => {
+                                                            const currentQuantity = returnedSnacks.find(s => s.name === snack.name)?.quantity || 0;
+                                                            return (
+                                                                <div key={index} className="returned-snack-card">
+                                                                    <div className="returned-snack-info">
+                                                                        <span className="returned-snack-name">{snack.name}</span>
+                                                                        <span className="returned-snack-limit">Available: {snack.quantity}</span>
+                                                                    </div>
+                                                                    <div className="returned-snack-controls">
+                                                                        <button
+                                                                            className="returned-snack-btn"
+                                                                            title="Decrease"
+                                                                            disabled={currentQuantity <= 0}
+                                                                            onClick={() => {
+                                                                                setReturnedSnacks(prev => {
+                                                                                    const existing = prev.find(s => s.name === snack.name)
+                                                                                    if (existing) {
+                                                                                        return prev.map(s => s.name === snack.name ? { ...s, quantity: Math.max(0, s.quantity - 1) } : s)
+                                                                                    }
+                                                                                    return prev
+                                                                                })
+                                                                            }}
+                                                                        >
+                                                                            <FaMinus size={10} />
+                                                                        </button>
+
+                                                                        <span className="returned-snack-count">
+                                                                            {currentQuantity}
+                                                                        </span>
+
+                                                                        <button
+                                                                            className="returned-snack-btn"
+                                                                            title="Increase"
+                                                                            disabled={currentQuantity >= snack.quantity}
+                                                                            onClick={() => {
+                                                                                setReturnedSnacks(prev => {
+                                                                                    const existing = prev.find(s => s.name === snack.name)
+                                                                                    if (existing) {
+                                                                                        return prev.map(s => s.name === snack.name ? { ...s, quantity: Math.min(snack.quantity, s.quantity + 1) } : s)
+                                                                                    }
+                                                                                    return [...prev, { name: snack.name, quantity: 1 }]
+                                                                                })
+                                                                            }}
+                                                                        >
+                                                                            <FaPlus size={10} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                            )}
+
                                             <div className="section-title-sm">
-                                                <FaPizzaSlice /> Returned Snacks
+                                                <FaTools /> Session Override & Corrections
                                             </div>
-                                            <div className="returned-snacks-list">
-                                                {session.snacks.map((snack: any, index: number) => {
-                                                    const currentQuantity = returnedSnacks.find(s => s.name === snack.name)?.quantity || 0;
-                                                    return (
-                                                        <div key={index} className="returned-snack-card">
-                                                            <div className="returned-snack-info">
-                                                                <span className="returned-snack-name">{snack.name}</span>
-                                                                <span className="returned-snack-limit">Available: {snack.quantity}</span>
-                                                            </div>
-                                                            <div className="returned-snack-controls">
-                                                                <button
-                                                                    className="returned-snack-btn"
-                                                                    title="Decrease"
-                                                                    disabled={currentQuantity <= 0}
-                                                                    onClick={() => {
-                                                                        setReturnedSnacks(prev => {
-                                                                            const existing = prev.find(s => s.name === snack.name)
-                                                                            if (existing) {
-                                                                                return prev.map(s => s.name === snack.name ? { ...s, quantity: Math.max(0, s.quantity - 1) } : s)
-                                                                            }
-                                                                            return prev
-                                                                        })
-                                                                    }}
-                                                                >
-                                                                    <FaMinus size={10} />
-                                                                </button>
 
-                                                                <span className="returned-snack-count">
-                                                                    {currentQuantity}
-                                                                </span>
+                                            <div className="item-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+                                                <div className="input-group">
 
-                                                                <button
-                                                                    className="returned-snack-btn"
-                                                                    title="Increase"
-                                                                    disabled={currentQuantity >= snack.quantity}
-                                                                    onClick={() => {
-                                                                        setReturnedSnacks(prev => {
-                                                                            const existing = prev.find(s => s.name === snack.name)
-                                                                            if (existing) {
-                                                                                return prev.map(s => s.name === snack.name ? { ...s, quantity: Math.min(snack.quantity, s.quantity + 1) } : s)
-                                                                            }
-                                                                            return [...prev, { name: snack.name, quantity: 1 }]
-                                                                        })
-                                                                    }}
-                                                                >
-                                                                    <FaPlus size={10} />
-                                                                </button>
-                                                            </div>
+                                                    <label className="input-label">Correct Original People Count</label>
+
+                                                    <div className="minimal-counter" style={{ padding: '0.75rem', marginBottom: 0, maxWidth: '200px' }}>
+
+                                                        <button className="counter-btn"
+                                                            onClick={() => setCorrectedPeopleCount(p => Math.max(1, p - 1))}
+                                                        >
+                                                            <FaMinus size={10} />
+                                                        </button>
+
+                                                        <div className="counter-value" style={{ fontSize: '1.5rem' }}>
+                                                            {correctedPeopleCount}
                                                         </div>
-                                                    );
-                                                })}
+
+                                                        <button className="counter-btn"
+                                                            onClick={() => setCorrectedPeopleCount(p => p + 1)}
+                                                        >
+                                                            <FaPlus size={10} />
+                                                        </button>
+
+                                                    </div>
+
+                                                </div>
                                             </div>
+
                                         </div>
 
                                     )}
-
-                                    <div className="section-title-sm">
-                                        <FaTools /> Session Override & Corrections
-                                    </div>
-
-                                    <div className="item-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
-                                        <div className="input-group">
-
-                                            <label className="input-label">Correct Original People Count</label>
-
-                                            <div className="minimal-counter" style={{ padding: '0.75rem', marginBottom: 0, maxWidth: '200px' }}>
-
-                                                <button className="counter-btn"
-                                                    onClick={() => setCorrectedPeopleCount(p => Math.max(1, p - 1))}
-                                                >
-                                                    <FaMinus size={10} />
-                                                </button>
-
-                                                <div className="counter-value" style={{ fontSize: '1.5rem' }}>
-                                                    {correctedPeopleCount}
-                                                </div>
-
-                                                <button className="counter-btn"
-                                                    onClick={() => setCorrectedPeopleCount(p => p + 1)}
-                                                >
-                                                    <FaPlus size={10} />
-                                                </button>
-
+                                    <section>
+                                        <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                                            <FaClock style={{ display: 'inline', marginRight: '6px' }} /> Update Time
+                                        </h3>
+                                        <div className="minimal-counter">
+                                            <button className="counter-btn" onClick={() => setExtraMinutes(prev => Math.max(0, prev - 15))}>
+                                                <FaMinus size={12} />
+                                            </button>
+                                            <div className="counter-display">
+                                                <div className="counter-value">{extraMinutes}</div>
+                                                <span className="counter-label">Minutes Added</span>
                                             </div>
-
+                                            <button className="counter-btn" onClick={() => setExtraMinutes(prev => prev + 15)}>
+                                                <FaPlus size={12} />
+                                            </button>
                                         </div>
-                                    </div>
-
-                                </div>
-
-                            )}
-                            <section>
-                                <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
-                                    <FaClock style={{ display: 'inline', marginRight: '6px' }} /> Update Time
-                                </h3>
-                                <div className="minimal-counter">
-                                    <button className="counter-btn" onClick={() => setExtraMinutes(prev => Math.max(0, prev - 15))}>
-                                        <FaMinus size={12} />
-                                    </button>
-                                    <div className="counter-display">
-                                        <div className="counter-value">{extraMinutes}</div>
-                                        <span className="counter-label">Minutes Added</span>
-                                    </div>
-                                    <button className="counter-btn" onClick={() => setExtraMinutes(prev => prev + 15)}>
-                                        <FaPlus size={12} />
-                                    </button>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1rem', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)' }}>
-                                    <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>Current Session Time</span>
-                                    <span style={{ color: '#c084fc', fontWeight: 'bold', fontFamily: 'Orbitron, sans-serif' }}>
-                                        {Math.floor(session.duration)}h {Math.round((session.duration % 1) * 60)}m
-                                    </span>
-                                </div>
-                                {(() => {
-                                    const start = new Date(session.startTime).getTime();
-                                    const totalDurationMs = (session.duration + (extraMinutes / 60)) * 60 * 60 * 1000;
-                                    const remaining = (start + totalDurationMs) - Date.now();
-
-                                    let timeText = "Completed";
-                                    if (remaining > 0) {
-                                        const hrs = Math.floor(remaining / (1000 * 60 * 60));
-                                        const mins = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-                                        const secs = Math.floor((remaining % (1000 * 60)) / 1000);
-                                        timeText = `${hrs > 0 ? `${hrs}h ` : ''}${mins}m ${secs}s`;
-                                    }
-
-                                    return (
-                                        <div className={`timer-row ${extraMinutes > 0 ? 'updated' : ''}`}>
-                                            <span className="timer-label">Next Update in</span>
-                                            <span className={`timer-value ${remaining < 600000 ? 'urgent' : ''}`}>
-                                                {timeText}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1rem', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)' }}>
+                                            <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>Current Session Time</span>
+                                            <span style={{ color: '#c084fc', fontWeight: 'bold', fontFamily: 'Orbitron, sans-serif' }}>
+                                                {Math.floor(session.duration)}h {Math.round((session.duration % 1) * 60)}m
                                             </span>
                                         </div>
-                                    );
-                                })()}
-                            </section>
+                                        {(() => {
+                                            const start = new Date(session.startTime).getTime();
+                                            const totalDurationMs = (session.duration + (extraMinutes / 60)) * 60 * 60 * 1000;
+                                            const remaining = (start + totalDurationMs) - Date.now();
 
-                            <section>
-                                <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
-                                    <FaUserPlus style={{ display: 'inline', marginRight: '6px' }} /> Add Players
-                                </h3>
-                                <div className="item-grid">
-                                    <div className="input-group">
-                                        <label className="input-label">New Player Name (Optional)</label>
-                                        <input
-                                            placeholder="e.g. Rahul Sharma"
-                                            className="modal-input"
-                                            value={newMember.name}
-                                            onChange={e => setNewMember({ ...newMember, name: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="minimal-counter">
-                                        <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: Math.max(0, p.peopleCount - 1) }))}>
-                                            <FaMinus size={12} />
-                                        </button>
-                                        <div className="counter-display">
-                                            <div className="counter-value">{newMember.peopleCount}</div>
-                                            <span className="counter-label">New Players</span>
+                                            let timeText = "Completed";
+                                            if (remaining > 0) {
+                                                const hrs = Math.floor(remaining / (1000 * 60 * 60));
+                                                const mins = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+                                                const secs = Math.floor((remaining % (1000 * 60)) / 1000);
+                                                timeText = `${hrs > 0 ? `${hrs}h ` : ''}${mins}m ${secs}s`;
+                                            }
+
+                                            return (
+                                                <div className={`timer-row ${extraMinutes > 0 ? 'updated' : ''}`}>
+                                                    <span className="timer-label">Next Update in</span>
+                                                    <span className={`timer-value ${remaining < 600000 ? 'urgent' : ''}`}>
+                                                        {timeText}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })()}
+                                    </section>
+
+                                    <section>
+                                        <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                                            <FaUserPlus style={{ display: 'inline', marginRight: '6px' }} /> Add Players
+                                        </h3>
+                                        <div className="item-grid">
+                                            <div className="input-group">
+                                                <label className="input-label">New Player Name (Optional)</label>
+                                                <input
+                                                    placeholder="e.g. Rahul Sharma"
+                                                    className="modal-input"
+                                                    value={newMember.name}
+                                                    onChange={e => setNewMember({ ...newMember, name: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="minimal-counter">
+                                                <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: Math.max(0, p.peopleCount - 1) }))}>
+                                                    <FaMinus size={12} />
+                                                </button>
+                                                <div className="counter-display">
+                                                    <div className="counter-value">{newMember.peopleCount}</div>
+                                                    <span className="counter-label">New Players</span>
+                                                </div>
+                                                <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: p.peopleCount + 1 }))}>
+                                                    <FaPlus size={12} />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <button className="counter-btn" onClick={() => setNewMember(p => ({ ...p, peopleCount: p.peopleCount + 1 }))}>
-                                            <FaPlus size={12} />
-                                        </button>
+                                    </section>
+                                </div>
+                                {/* Edit Session Correction */}
+                                {/* MIDDLE COLUMN: Assign Hardware */}
+                                <div style={{ width: '50%' }}>
+                                    <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                                        <FaTools style={{ display: 'inline', marginRight: '6px' }} /> Assign Hardware
+                                    </h3>
+                                    <div className="devices-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                                        <DeviceDropdown icon={<FaGamepad />} label="PS5" limit={availability.limits.ps} value={newMember.devices.ps} occupied={availability.occupied.ps || []} onChange={v => updateDevice('ps', v)} />
+                                        <DeviceDropdown icon={<FaDesktop />} label="PC" limit={availability.limits.pc} value={newMember.devices.pc} occupied={availability.occupied.pc || []} onChange={v => updateDevice('pc', v)} />
+                                        <DeviceDropdown icon={<FaVrCardboard />} label="VR" limit={availability.limits.vr} value={newMember.devices.vr} occupied={availability.occupied.vr || []} onChange={v => updateDevice('vr', v)} />
+                                        <DeviceDropdown icon={<GiSteeringWheel />} label="Wheel" limit={availability.limits.wheel} value={newMember.devices.wheel} occupied={availability.occupied.wheel || []} onChange={v => updateDevice('wheel', v)} />
+                                        <DeviceDropdown icon={<GiCricketBat />} label="MetaBat" limit={availability.limits.metabat} value={newMember.devices.metabat} occupied={availability.occupied.metabat || []} onChange={v => updateDevice('metabat', v)} />
                                     </div>
                                 </div>
-                            </section>
+
+                            </div>
 
                             <section>
                                 <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -590,19 +610,7 @@ const UpdateSessionModal = ({ session, onClose }: Props) => {
                             </section>
                         </div>
 
-                        {/* MIDDLE COLUMN: Assign Hardware */}
-                        <div>
-                            <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
-                                <FaTools style={{ display: 'inline', marginRight: '6px' }} /> Assign Hardware
-                            </h3>
-                            <div className="devices-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
-                                <DeviceDropdown icon={<FaGamepad />} label="PS5" limit={availability.limits.ps} value={newMember.devices.ps} occupied={availability.occupied.ps || []} onChange={v => updateDevice('ps', v)} />
-                                <DeviceDropdown icon={<FaDesktop />} label="PC" limit={availability.limits.pc} value={newMember.devices.pc} occupied={availability.occupied.pc || []} onChange={v => updateDevice('pc', v)} />
-                                <DeviceDropdown icon={<FaVrCardboard />} label="VR" limit={availability.limits.vr} value={newMember.devices.vr} occupied={availability.occupied.vr || []} onChange={v => updateDevice('vr', v)} />
-                                <DeviceDropdown icon={<GiSteeringWheel />} label="Wheel" limit={availability.limits.wheel} value={newMember.devices.wheel} occupied={availability.occupied.wheel || []} onChange={v => updateDevice('wheel', v)} />
-                                <DeviceDropdown icon={<GiCricketBat />} label="MetaBat" limit={availability.limits.metabat} value={newMember.devices.metabat} occupied={availability.occupied.metabat || []} onChange={v => updateDevice('metabat', v)} />
-                            </div>
-                        </div>
+
 
                         {/* RIGHT COLUMN: Invoice */}
                         <div style={{ position: 'sticky', top: '0', height: 'fit-content' }}>

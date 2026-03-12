@@ -29,6 +29,31 @@ const transformDevicesToArray = (deviceData) => {
     });
 };
 
+// Helper to get Pricing Config
+const getPricingConfig = async () => {
+    const { getDefaultPricingConfig } = require('./pricingController');
+    const defaults = getDefaultPricingConfig();
+    try {
+        const doc = await db.collection('settings').doc('pricing').get();
+        if (doc.exists) {
+            const data = doc.data();
+            // Shallow merge of top sections (monWedPrices, etc.)
+            const merged = { ...defaults };
+            Object.keys(data).forEach(key => {
+                if (data[key] && typeof data[key] === 'object' && !Array.isArray(data[key])) {
+                    merged[key] = { ...merged[key], ...data[key] };
+                } else {
+                    merged[key] = data[key];
+                }
+            });
+            return merged;
+        }
+    } catch (err) {
+        console.error("Error fetching pricing for controller logic:", err);
+    }
+    return defaults;
+};
+
 const getDeviceAvailability = async (req, res) => {
     try {
         const snapshot = await db
@@ -107,11 +132,13 @@ const createSession = async (req, res) => {
         const peopleVal = parseInt(peopleCount) || 1;
         const devicesVal = devices || {};
 
+        const pricingConfig = await getPricingConfig();
         const basePrice = calculateSessionPrice(
             durationVal,
             peopleVal,
             devicesVal,
-            new Date()
+            new Date(),
+            pricingConfig
         );
 
         // Use the price sent from frontend (which includes snacks) or fallback to calculated base
@@ -409,6 +436,8 @@ const exportSessions = async (req, res) => {
             .limit(2000)
             .get();
 
+        const pricingConfigExport = await getPricingConfig();
+
         const data = snapshot.docs.map(doc => {
             const s = doc.data();
             const startStr = s.startTime;
@@ -416,11 +445,13 @@ const exportSessions = async (req, res) => {
 
             // Determine Time Category
             let timeCategory = 'Unknown';
-            if (startTime) {
-                if (isFunNightTime(startTime)) timeCategory = 'Fun Night';
-                else if (isNormalHourTime(startTime)) timeCategory = 'Normal Hour';
-                else if (isHappyHourTime(startTime)) timeCategory = 'Happy Hour';
-                else timeCategory = 'Happy Hour'; // Default fallback based on business logic
+            // Note: exportSessions is sync for each map item, so we should fetch config ONCE outside the map
+            // I will move the config fetch outside.
+            if (startTime && pricingConfigExport) {
+                if (isFunNightTime(startTime, pricingConfigExport)) timeCategory = 'Fun Night';
+                else if (isNormalHourTime(startTime, pricingConfigExport)) timeCategory = 'Normal Hour';
+                else if (isHappyHourTime(startTime, pricingConfigExport)) timeCategory = 'Happy Hour';
+                else timeCategory = 'Happy Hour';
             }
 
             // Session Renewed logic
@@ -513,9 +544,9 @@ const getDeviceAvailabilityForTime = async (req, res) => {
 const updateSession = async (req, res) => {
     try {
         const { id } = req.params;
-        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks, paymentMode, cashCount, onlineCount, addedPeopleCorrection, returnedSnacks  } = req.body;
+        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks, paymentMode, cashCount, onlineCount, addedPeopleCorrection, returnedSnacks } = req.body;
 
-        
+
 
         // Deduct snacks for update
 
@@ -529,42 +560,42 @@ const updateSession = async (req, res) => {
 
         const data = snap.data();
 
-               // Merge old snacks + new snacks
-const existingSnacks = data.snacks || [];
+        // Merge old snacks + new snacks
+        const existingSnacks = data.snacks || [];
 
-let updatedSnacks = [...existingSnacks];
+        let updatedSnacks = [...existingSnacks];
 
-if (snacks && Array.isArray(snacks) && snacks.length > 0) {
-    snacks.forEach(newSnack => {
-        const existing = updatedSnacks.find(s => s.name === newSnack.name);
+        if (snacks && Array.isArray(snacks) && snacks.length > 0) {
+            snacks.forEach(newSnack => {
+                const existing = updatedSnacks.find(s => s.name === newSnack.name);
 
-        if (existing) {
-            existing.quantity += newSnack.quantity;
-        } else {
-            updatedSnacks.push({
-                name: newSnack.name,
-                quantity: newSnack.quantity
+                if (existing) {
+                    existing.quantity += newSnack.quantity;
+                } else {
+                    updatedSnacks.push({
+                        name: newSnack.name,
+                        quantity: newSnack.quantity
+                    });
+                }
             });
         }
-    });
-}
-if (returnedSnacks && Array.isArray(returnedSnacks) && returnedSnacks.length > 0) {
+        if (returnedSnacks && Array.isArray(returnedSnacks) && returnedSnacks.length > 0) {
 
-    returnedSnacks.forEach(returned => {
+            returnedSnacks.forEach(returned => {
 
-        const existing = updatedSnacks.find(s => s.name === returned.name);
+                const existing = updatedSnacks.find(s => s.name === returned.name);
 
-        if (existing) {
-            existing.quantity -= returned.quantity;
+                if (existing) {
+                    existing.quantity -= returned.quantity;
 
-            if (existing.quantity <= 0) {
-                updatedSnacks = updatedSnacks.filter(s => s.name !== returned.name);
-            }
+                    if (existing.quantity <= 0) {
+                        updatedSnacks = updatedSnacks.filter(s => s.name !== returned.name);
+                    }
+                }
+
+            });
+
         }
-
-    });
-
-}
 
         // ---- Fixed split logic: Track actual amounts, not recalculate ----
         const totalPrice = data.price + (extraPrice || 0);
@@ -770,6 +801,8 @@ const convertBookingsToSessions = async (req, res) => {
             return res ? res.status(200).json({ message: 'No bookings to convert', converted: 0 }) : { converted: 0 };
         }
 
+        const pricingConfig = await getPricingConfig();
+
         let convertedCount = 0;
         const conversions = [];
 
@@ -803,7 +836,8 @@ const convertBookingsToSessions = async (req, res) => {
                     parseFloat(duration.toFixed(2)),
                     finalPeopleCount,
                     booking.devices || {},
-                    now // Use current time for pricing rules
+                    now, // Use current time for pricing rules
+                    pricingConfig
                 );
 
                 // Create new session
