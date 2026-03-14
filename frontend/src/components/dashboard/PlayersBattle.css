@@ -1,254 +1,391 @@
 /* PlayersBattle.css */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-.players-battle-container {
-    padding: 1rem;
-    display: flex;
-    justify-content: center;
-}
-
-.start-battle-btn {
-    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
-    color: white;
-    padding: 1rem 2rem;
+/* --- Main Container / Launcher --- */
+.battle-launcher-card {
+    background: linear-gradient(145deg, rgba(20, 20, 30, 0.9), rgba(10, 10, 15, 0.95));
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 16px;
-    font-size: 1.1rem;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.start-battle-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.5);
-}
-
-.start-battle-btn:active {
-    transform: scale(0.96);
-}
-
-/* Modal Styles Reuse */
-.battle-modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-}
-
-.battle-modal-container {
-    background: #09090b;
-    width: 95%;
-    max-width: 800px;
-    /* Wider for VS layout */
-    border-radius: 24px;
-    box-shadow:
-        0 25px 50px -12px rgba(0, 0, 0, 0.5),
-        0 0 0 1px rgba(255, 255, 255, 0.1);
-    font-family: 'Inter', sans-serif;
-    color: #f4f4f5;
-    overflow: hidden;
-    position: relative;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-}
-
-.battle-modal-header {
     padding: 1.5rem;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    justify-content: center;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
-.battle-modal-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    background: linear-gradient(to right, #f4f4f5, #a1a1aa);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+.battle-launcher-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(139, 92, 246, 0.15), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
-.close-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: none;
-    color: #a1a1aa;
-    width: 36px;
-    height: 36px;
+.battle-launcher-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(139, 92, 246, 0.4);
+    box-shadow: 0 12px 30px rgba(139, 92, 246, 0.15);
+}
+
+.battle-launcher-card:hover::before {
+    opacity: 1;
+}
+
+.launcher-icon-wrapper {
+    width: 60px;
+    height: 60px;
+    background: rgba(139, 92, 246, 0.1);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(139, 92, 246, 0.2);
 }
 
-.close-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+.launcher-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
 }
 
-/* Form Layout */
-.battle-form-content {
-    padding: 2rem;
-    overflow-y: auto;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 2rem;
-    align-items: flex-start;
+.launcher-subtitle {
+    font-size: 0.875rem;
+    color: #94a3b8;
+    max-width: 80%;
 }
 
-@media (max-width: 768px) {
-    .battle-form-content {
-        grid-template-columns: 1fr;
-        padding: 1rem;
-        gap: 1.5rem;
-    }
+/* --- Modal Backdrop --- */
+.battle-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    /* Darker backdrop */
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
 }
 
-.form-section {
-    background: #18181b;
-    padding: 1.5rem;
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    position: relative;
+/* --- Modal Container --- */
+.battle-modal-container {
+    background: #0f1014;
+    width: 100%;
+    max-width: 800px;
+    /* Wider for 2-col layout */
+    max-height: 90vh;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
 }
 
-.crown-holder-section {
-    border-top: 4px solid #eab308;
-    /* Gold */
+/* --- Modal Header --- */
+.battle-modal-header {
+    background: rgba(15, 16, 20, 0.95);
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.challenger-section {
-    border-top: 4px solid #3b82f6;
-    /* Blue */
-}
-
-/* Glowing effects */
-.crown-holder-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 100px;
-    background: radial-gradient(circle at 50% 0%, rgba(234, 179, 8, 0.15), transparent 70%);
-    pointer-events: none;
-}
-
-.challenger-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 100px;
-    background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.15), transparent 70%);
-    pointer-events: none;
-}
-
-.section-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    margin-bottom: 1.5rem;
+.header-title-wrapper {
     display: flex;
     align-items: center;
     gap: 0.75rem;
 }
 
-.vs-badge {
+.battle-modal-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
-    font-weight: 900;
-    font-style: italic;
-    color: #ef4444;
-    padding: 1rem;
 }
 
-/* Input Fields */
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: rotate(90deg);
+}
+
+/* --- Modal Content / Scroll Support --- */
+.battle-form-content {
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Side-by-Side Grid for Large Screens */
+.players-grid {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    /* Player VS Player */
+    gap: 1rem;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .players-grid {
+        grid-template-columns: 1fr;
+        /* Stack vertically on mobile */
+        gap: 2rem;
+    }
+}
+
+/* --- Player Cards --- */
+.player-card {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 1.25rem;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.player-card.crown {
+    border-color: rgba(234, 179, 8, 0.2);
+    /* Yellow tint */
+}
+
+.player-card.challenger {
+    border-color: rgba(59, 130, 246, 0.2);
+    /* Blue tint */
+}
+
+.player-card:focus-within {
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+}
+
+.crown .card-header {
+    color: #facc15;
+}
+
+.challenger .card-header {
+    color: #60a5fa;
+}
+
+/* --- Inputs --- */
 .input-group {
     margin-bottom: 1rem;
 }
 
 .input-label {
     display: block;
-    font-size: 0.8rem;
-    color: #a1a1aa;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-bottom: 0.4rem;
+    margin-left: 2px;
 }
 
-.battle-input {
+.battle-input-wrapper {
+    position: relative;
+}
+
+.battle-input,
+.battle-select {
     width: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
-    padding: 0.75rem 1rem;
-    border-radius: 10px;
-    font-size: 0.95rem;
-    transition: all 0.2s;
+    background: #09090b;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    padding: 0.75rem 0.8rem;
+    color: #fff;
+    font-size: 0.9rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: 'Inter', sans-serif;
 }
 
-.battle-input:focus {
+.battle-input:focus,
+.battle-select:focus {
     outline: none;
-    border-color: rgba(255, 255, 255, 0.2);
-    background: rgba(0, 0, 0, 0.5);
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
-/* Footer Actions */
+.battle-input.error {
+    border-color: #ef4444;
+}
+
+.input-error-msg {
+    color: #ef4444;
+    font-size: 0.7rem;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+/* --- Dropdown Auth --- */
+.player-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background-color: #0f1014;
+    border: 1px solid #27272a;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    z-index: 50;
+    max-height: 150px;
+    overflow-y: auto;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+.dropdown-item {
+    padding: 0.75rem 0.8rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    transition: background-color 0.2s, color 0.2s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover {
+    background-color: rgba(139, 92, 246, 0.15);
+    color: #fff;
+}
+
+/* --- VS Divider --- */
+.vs {
+    font-family: 'Orbitron', sans-serif;
+    /* Tech font */
+    font-size: 3rem;
+    font-weight: 1000;
+    font-style: italic;
+    background: linear-gradient(to bottom, #ef4444, #f59e0b);
+    /* Fire gradient */
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.5));
+    transform: skewX(-10deg);
+    margin-left: -2px;
+    user-select: none;
+}
+
+@media (max-width: 768px) {
+    .vs {
+        height: auto;
+        padding: 1rem 0;
+        font-size: 1.25rem;
+    }
+}
+
+/* --- Common Settings --- */
+.common-settings {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+}
+
+/* --- Actions --- */
 .battle-actions {
-    padding: 1.5rem;
+    background: rgba(15, 16, 20, 0.95);
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
-    background: #18181b;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .cancel-btn {
-    padding: 0.75rem 1.5rem;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
     background: transparent;
-    color: #a1a1aa;
-    font-weight: 600;
-    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
     transition: all 0.2s;
 }
 
 .cancel-btn:hover {
-    color: white;
     background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
-.confirm-battle-btn {
-    padding: 0.75rem 2rem;
-    border-radius: 12px;
+.start-btn {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
     border: none;
-    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
     color: white;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
     font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-.confirm-battle-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
+.start-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px rgba(124, 58, 237, 0.4);
+}
+
+.start-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }

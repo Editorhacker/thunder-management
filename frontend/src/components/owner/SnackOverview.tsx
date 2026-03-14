@@ -35,8 +35,7 @@ const SnackOverview: React.FC = () => {
     // Fetch Data
     const fetchSnacks = async () => {
         try {
-
-            const res = await axios.get('https://thunder-management.onrender.com/api/snacks');
+            const res = await axios.get('/api/snacks');
             setSnacks(res.data);
         } catch (err) {
             console.error('Failed to fetch snacks', err);
@@ -69,7 +68,7 @@ const SnackOverview: React.FC = () => {
                 return;
             }
 
-            await axios.post('https://thunder-management.onrender.com/api/snacks', {
+            await axios.post('/api/snacks', {
                 name: form.name,
                 buyingPrice: Number(form.buyingPrice),
                 sellingPrice: Number(form.sellingPrice),
@@ -89,7 +88,7 @@ const SnackOverview: React.FC = () => {
     const handleDelete = async (id: string) => {
         if (!window.confirm('Are you sure you want to delete this snack?')) return;
         try {
-            await axios.delete(`https://thunder-management.onrender.com/api/snacks/${id}`);
+            await axios.delete(`/api/snacks/${id}`);
             setSnacks(prev => prev.filter(s => s.id !== id));
             // alert('Snack Deleted'); // Optional, maybe too noisy
         } catch (err) {

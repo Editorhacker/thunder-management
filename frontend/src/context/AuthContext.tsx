@@ -56,14 +56,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // 🔥 Attach token globally
         axios.defaults.headers.common.Authorization = `Bearer ${token}`;
 
-        const res = await axios.get('https://thunder-management.onrender.com/api/auth/me');
+        const res = await axios.get('/api/auth/me');
 
-        setUser({
-          uid: res.data.user.uid,
-          email: res.data.user.email,
-          username: res.data.user.username,
-          role: res.data.user.role
-        });
+        if (res.data?.user) {
+          setUser({
+            uid: res.data.user.uid,
+            email: res.data.user.email,
+            username: res.data.user.username,
+            role: res.data.user.role
+          });
+        }
+
 
       } catch (err) {
         console.error('Failed to load user', err);

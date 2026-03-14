@@ -9,5 +9,4 @@ router.get("/thunder-player", (req, res) => {
     const { name, phone } = req.query;
     res.json({ name, phone });
 });
-
 module.exports = router;

@@ -10,7 +10,7 @@ import {
     ResponsiveContainer
 } from 'recharts';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import api from '../../utils/api';
 
 interface DeviceUsageData {
     name: string;
@@ -23,7 +23,7 @@ const DeviceUsageChart: React.FC = () => {
     useEffect(() => {
         const fetchDeviceUsage = async () => {
             try {
-                const res = await axios.get('https://thunder-management.onrender.com/api/analytics/deviceusage');
+                const res = await api.get('/api/analytics/deviceusage');
 
                 // 🔒 Safety: Recharts needs array
                 if (Array.isArray(res.data)) {

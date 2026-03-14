@@ -1,4 +1,4 @@
-/* QuickActions.css */
+/* QuickActions.css - Redesigned */
 
 .quick-actions-container {
     display: grid;
@@ -14,8 +14,9 @@
 }
 
 .action-card {
-    background: #18181b;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--theme-card-bg, rgba(18, 25, 40, 0.7));
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--theme-card-border, rgba(59, 130, 246, 0.2));
     border-radius: 20px;
     padding: 2rem;
     display: flex;
@@ -26,40 +27,47 @@
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     position: relative;
     overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .action-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--theme-primary, #3b82f6);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 15px rgba(59, 130, 246, 0.2);
 }
 
 .action-card:active {
     transform: scale(0.98);
 }
 
-/* Specific Card Styles */
-
-/* Session Card */
+/* Specific Card - Session */
 .action-card.session {
-    background: linear-gradient(145deg, #18181b 0%, #1e1e24 100%);
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.2) 0%, rgba(15, 23, 42, 0.6) 100%);
 }
 
 .action-card.session:hover .action-icon-wrapper {
     background: #3b82f6;
     color: white;
     box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    transform: scale(1.1) rotate(-5deg);
 }
 
-/* Battle Card */
+/* Specific Card - Battle */
 .action-card.battle {
-    background: linear-gradient(145deg, #18181b 0%, #2a1818 100%);
+    background: linear-gradient(135deg, rgba(127, 29, 29, 0.15) 0%, rgba(15, 23, 42, 0.6) 100%);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.action-card.battle:hover {
+    border-color: #ef4444;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 15px rgba(239, 68, 68, 0.2);
 }
 
 .action-card.battle:hover .action-icon-wrapper {
     background: #ef4444;
     color: white;
     box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+    transform: scale(1.1) rotate(5deg);
 }
 
 
@@ -69,11 +77,13 @@
     height: 64px;
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.05);
+    /* Glassy default */
     display: grid;
     place-items: center;
     font-size: 1.75rem;
-    color: #f4f4f5;
-    transition: all 0.3s ease;
+    color: var(--theme-text-main, #f0f4f8);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .action-content {
@@ -81,16 +91,17 @@
 }
 
 .action-title {
+    font-family: var(--font-heading, 'Inter', sans-serif);
     font-size: 1.25rem;
     font-weight: 700;
-    color: #fff;
+    color: var(--theme-text-main, #fff);
     margin-bottom: 0.25rem;
     letter-spacing: -0.01em;
 }
 
 .action-desc {
     font-size: 0.85rem;
-    color: #a1a1aa;
+    color: var(--theme-text-muted, #94a3b8);
     font-weight: 500;
 }
 
@@ -102,5 +113,5 @@
 
 .action-card:hover .action-arrow {
     color: #fff;
-    transform: translateX(4px);
+    transform: translateX(6px);
 }

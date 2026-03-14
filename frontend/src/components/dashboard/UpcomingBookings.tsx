@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { FaClock, FaChevronRight, FaChevronLeft, FaCalendarAlt, FaPlus, FaUser, FaUsers, FaTrash } from 'react-icons/fa';
+import { FaChevronRight, FaChevronLeft, FaCalendarAlt, FaPlus, FaTrash } from 'react-icons/fa';
 import { FaPlaystation, FaDesktop, FaVrCardboard, FaGamepad } from 'react-icons/fa';
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
-import { MdAccessTime } from 'react-icons/md';
 import BookingModal from './BookingModal';
+import ConfirmationModal from './ConfirmationModal';
 import './UpcomingBookings.css';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 type DeviceType = 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat';
 
@@ -31,12 +33,18 @@ const UpcomingBookings = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const { user } = useAuth();
+
+  // Delete Modal State
+  const [deleteData, setDeleteData] = useState<{ isOpen: boolean; id: string; name: string } | null>(null);
 
   // Update current time every minute for countdown
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  const processingRef = useRef<Set<string>>(new Set());
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -59,17 +67,60 @@ const UpcomingBookings = () => {
     }
   };
 
-  const handleDeleteBooking = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to cancel the booking for ${name}?`)) {
-      return;
+  // Check for bookings that should start now
+  useEffect(() => {
+    const checkStartingBookings = async () => {
+      const now = Date.now();
+
+      for (const booking of bookings) {
+        const startTime = new Date(booking.time).getTime();
+        // If start time is reached or passed (within a reasonable window, e.g., 1 min late is fine)
+        if (startTime <= now && !processingRef.current.has(booking.id)) {
+          // Mark as processing to prevent double-firing
+          processingRef.current.add(booking.id);
+
+          console.log(`Auto-starting booking ${booking.id} - ${booking.name}`);
+
+          try {
+            // Call backend to convert booking to session
+            await axios.post(`https://thunder-management.onrender.com/api/sessions/start-booking/${booking.id}`);
+            // Refresh list to remove it
+            fetchBookings();
+          } catch (error) {
+            console.error(`Failed to auto-start booking ${booking.id}`, error);
+            processingRef.current.delete(booking.id); // Retry next tick if failed
+          }
+        }
+      }
+    };
+
+    if (bookings.length > 0) {
+      checkStartingBookings();
     }
+  }, [currentTime, bookings]);
+
+  const handleDeleteClick = (id: string, name: string) => {
+    setDeleteData({ isOpen: true, id, name });
+  };
+
+  const { showToast } = useToast();
+
+  const confirmDeleteBooking = async () => {
+    if (!deleteData) return;
 
     try {
-      await axios.delete(`https://thunder-management.onrender.com/api/sessions/booking/${id}`);
+      await axios.delete(`https://thunder-management.onrender.com/api/sessions/booking/${deleteData.id}`, {
+        data: {
+          deletedBy: user?.role === 'owner' ? 'Owner' : 'Employee',
+          deletedByName: user?.username || 'Unknown'
+        }
+      });
       fetchBookings(); // Refresh list
+      setDeleteData(null); // Close modal
+      showToast(`${deleteData.name}'s booking cancelled`, 'success');
     } catch (error) {
       console.error('Error deleting booking:', error);
-      alert('Failed to delete booking. Please try again.');
+      showToast('Failed to cancel booking', 'error');
     }
   };
 
@@ -88,8 +139,6 @@ const UpcomingBookings = () => {
       default: return <FaGamepad className="device-chip-icon" />;
     }
   };
-
-
 
   // Calculate time until booking
   const getTimeUntil = (bookingTime: string) => {
@@ -142,28 +191,12 @@ const UpcomingBookings = () => {
     return startStr;
   };
 
-  // Format date display
-  const formatDate = (timeString: string) => {
-    const date = new Date(timeString);
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    if (date.toDateString() === today.toDateString()) return 'Today';
-    if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
-
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   return (
     <section className="upcoming-bookings-container">
       <div className="bookings-header">
         <div className="bookings-header-left">
           <h3 className="bookings-title">
-            <FaCalendarAlt style={{ color: '#3b82f6' }} />
+            <FaCalendarAlt className="icon-blue" />
             Upcoming Bookings
           </h3>
           <p className="bookings-subtitle">
@@ -208,16 +241,22 @@ const UpcomingBookings = () => {
           {bookings.map((booking, index) => {
             const status = getBookingStatus(booking.time);
             const timeUntil = getTimeUntil(booking.time);
+            const timeDiff = new Date(booking.time).getTime() - currentTime;
+            const isRedUrgent = timeDiff > 0 && timeDiff <= 30 * 60 * 1000; // 30 mins
+            const isBlueUrgent = timeDiff > 30 * 60 * 1000 && timeDiff <= 90 * 60 * 1000; // 1.5 hours
 
             return (
               <motion.div
                 key={booking.id}
-                className="booking-card-premium"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                className={`booking-card-premium ${isRedUrgent ? 'glow-red' : isBlueUrgent ? 'glow-blue' : ''}`}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.1 }}
+                whileHover={{ scale: 1.05 }}
               >
-                <div className="booking-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+
+                {/* Header (Status + Delete) */}
+                <div className="booking-card-header">
                   <div className={`booking-status-badge ${status.class}`}>
                     {status.label}
                   </div>
@@ -225,75 +264,45 @@ const UpcomingBookings = () => {
                     className="delete-booking-btn"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteBooking(booking.id, booking.name);
+                      handleDeleteClick(booking.id, booking.name);
                     }}
-                    title="Cancel Booking"
-                    style={{
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      border: 'none',
-                      color: '#ef4444',
-                      padding: '0.5rem',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.2s ease'
-                    }}
+                    title="Cancel"
                   >
-                    <FaTrash size={14} />
+                    <FaTrash size={10} />
                   </button>
                 </div>
 
-                <div className="booking-time-section">
-                  <div className="booking-time-display">
-                    <div className="time-icon-wrapper">
-                      <MdAccessTime />
-                    </div>
-                    <div className="time-text">
-                      <span className="time-value">{formatTime(booking.time, booking.endTime)}</span>
-                      <span className="time-label">{formatDate(booking.time)}</span>
-                    </div>
+                {/* Main Content (Time) */}
+                <div className="booking-main-content">
+                  <div className="time-group">
+                    <span className="time-big">{formatTime(booking.time)}</span>
                   </div>
 
-                  <div className="countdown-timer">
-                    <FaClock style={{ fontSize: '0.75rem' }} />
-                    <span>Starts in</span>
-                    <span className="countdown-value">{timeUntil}</span>
+                  <div className="countdown-wrapper">
+                    {timeUntil}
                   </div>
                 </div>
 
-                <div className="booking-customer-section">
-                  <div className="customer-name">{booking.name}</div>
-                  <div className="customer-meta">
-                    {booking.peopleCount && (
-                      <div className="meta-item">
-                        {booking.peopleCount === 1 ? <FaUser /> : <FaUsers />}
-                        <span>{booking.peopleCount} {booking.peopleCount === 1 ? 'person' : 'people'}</span>
+                {/* Footer (Customer + Devices) */}
+                <div className="booking-footer-panel">
+                  <div className="customer-info">
+                    <span className="customer-name">{booking.name}</span>
+                    <span className="customer-meta">
+                      {booking.peopleCount ? `${booking.peopleCount}P` : ''}
+                      {booking.duration ? ` • ${booking.duration}H` : ''}
+                    </span>
+                  </div>
+
+                  <div className="device-list">
+                    {booking.devices.map((dev, i) => (
+                      <div key={i} className={`device-tech-pill ${dev.type}`} title={dev.type}>
+                        {getDeviceIcon(dev.type)}
+                        {dev.id && <span className="dev-id">#{dev.id}</span>}
                       </div>
-                    )}
-                    {booking.duration && booking.duration > 0 && (
-                      <>
-                        <span>•</span>
-                        <div className="meta-item">
-                          <FaClock />
-                          <span>{booking.duration}h session</span>
-                        </div>
-                      </>
-                    )}
+                    ))}
                   </div>
                 </div>
 
-                <div className="booking-devices-section">
-                  {booking.devices.map((dev, i) => (
-                    <div key={i} className={`device-tag ${dev.type}`}>
-                      {getDeviceIcon(dev.type)}
-                      <span style={{ textTransform: 'uppercase' }}>
-                        {dev.type} {dev.id ? `#${dev.id}` : ''}
-                      </span>
-                    </div>
-                  ))}
-                </div>
               </motion.div>
             );
           })}
@@ -309,6 +318,16 @@ const UpcomingBookings = () => {
           }}
         />
       )}
+
+      {/* Confirmation Modal for Deletion */}
+      <ConfirmationModal
+        isOpen={!!deleteData?.isOpen}
+        onClose={() => setDeleteData(null)}
+        onConfirm={confirmDeleteBooking}
+        title="Cancel Booking?"
+        message={`Are you sure you want to cancel the booking for ${deleteData?.name}? This action cannot be undone.`}
+        isDanger={true}
+      />
     </section>
   );
 };

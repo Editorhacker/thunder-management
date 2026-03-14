@@ -96,7 +96,7 @@ const TopNavbar = () => {
     <header className="top-navbar">
       <div className="navbar-content">
         <div className="cafe-title">
-          Thunder Gaming Cafe <span className="status-badge">ONLINE</span>
+          Thunder Gaming Cafe
         </div>
 
         {/* 🔍 Addictive Minimal Search Trigger */}
@@ -116,18 +116,6 @@ const TopNavbar = () => {
             </div>
             <div className="search-shortcut">Ctrl K</div>
           </motion.div>
-        </div>
-
-        {/* Minimal Status (Hidden on small screens) */}
-        <div className="status-indicators">
-          <div className="status-item">
-            <span className="status-dot green"></span>
-            <span>Network Stable</span>
-          </div>
-          <div className="status-item">
-            <span className="status-dot green"></span>
-            <span>Server Active</span>
-          </div>
         </div>
 
         <div className="user-actions" ref={dropdownRef}>
@@ -196,7 +184,7 @@ const TopNavbar = () => {
             >
               <div className="profile-info">
                 <span className="profile-name">{user?.username || 'Admin'}</span>
-                <span className="profile-role">{user?.role || 'Owner'}</span>
+                <span className="profile-role">{user?.role.toUpperCase() || 'OWNER'}</span>
               </div>
               <FaUserCircle size={32} color="rgba(255,255,255,0.8)" />
             </motion.div>

@@ -1,0 +1,512 @@
+/* PricingConfig.css - Modern Dashboard Module Design */
+
+.pricing-dashboard-view {
+    padding: 1rem;
+    height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    font-family: 'Outfit', sans-serif;
+    color: #fff;
+    overflow: hidden;
+}
+
+/* Module Header */
+.module-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.module-title h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(to right, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.module-title p {
+    color: #64748b;
+    margin: 4px 0 0 0;
+    font-size: 0.9rem;
+}
+
+/* Tab System */
+.pricing-tabs-container {
+    display: flex;
+    flex: 1;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    overflow: hidden;
+}
+
+.pricing-tabs-nav {
+    width: 240px;
+    background: rgba(0, 0, 0, 0.2);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.03);
+    color: #fff;
+}
+
+.tab-btn.active {
+    background: rgba(59, 130, 246, 0.1);
+    color: #60a5fa;
+    box-shadow: inset 0 0 15px rgba(59, 130, 246, 0.05);
+}
+
+.tab-icon {
+    font-size: 1.25rem;
+}
+
+.pricing-tabs-content {
+    flex: 1;
+    padding: 2rem;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Schedule UI Enhancements - Horizontal Shift View */
+.schedule-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+.day-schedule-card {
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.day-schedule-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: #3b82f6;
+    opacity: 0.5;
+}
+
+.day-header-dash {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 2rem;
+}
+
+.day-header-dash h3 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #fff;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.shifts-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.shift-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    align-items: center;
+    gap: 2rem;
+    padding: 1.25rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    transition: all 0.3s ease;
+}
+
+.shift-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateX(4px);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.shift-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.shift-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.time-box-premium {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #020617;
+    padding: 8px 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s;
+}
+
+.time-box-premium:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.time-num-input {
+    width: 38px;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.25rem;
+    font-weight: 800;
+    text-align: center;
+    outline: none;
+    padding: 2px 0;
+    font-family: 'Outfit', sans-serif;
+}
+
+/* Remove Arrows from all inputs globally */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.time-sep {
+    color: #475569;
+    font-weight: 900;
+    font-size: 1.2rem;
+}
+
+.shift-arrow-icon {
+    color: #475569;
+    font-size: 1.5rem;
+}
+
+.shift-happy .shift-label {
+    color: #facc15;
+}
+
+.shift-normal .shift-label {
+    color: #60a5fa;
+}
+
+.shift-fun .shift-label {
+    color: #f472b6;
+}
+
+.shift-happy {
+    border-left: 4px solid #facc15;
+}
+
+.shift-normal {
+    border-left: 4px solid #3b82f6;
+}
+
+.shift-fun {
+    border-left: 4px solid #ec4899;
+}
+
+
+/* Existing Content Layouts preserved below */
+.settings-group {
+    margin-bottom: 2.5rem;
+}
+
+.settings-group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.5rem;
+    color: #e2e8f0;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Setting Card */
+.setting-input-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 1.25rem;
+    transition: all 0.3s ease;
+}
+
+.setting-input-card:focus-within {
+    border-color: rgba(59, 130, 246, 0.4);
+    background: rgba(59, 130, 246, 0.03);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+}
+
+.setting-label {
+    display: block;
+    color: #94a3b8;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.setting-value-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dashboard-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.25rem;
+    font-weight: 700;
+    outline: none;
+    width: 100%;
+}
+
+/* Remove Spinners */
+.dashboard-input::-webkit-outer-spin-button,
+.dashboard-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+}
+
+.dashboard-input[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.unit-label {
+    color: #475569;
+    font-weight: 700;
+}
+
+/* Price Toggle Group */
+.price-toggle-group {
+    display: flex;
+    background: rgba(15, 23, 42, 0.4);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.price-toggle-btn {
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #94a3b8;
+}
+
+.price-toggle-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.price-toggle-btn.active {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* Horizontal Table Layout for Device Prices */
+.price-comparison-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 12px;
+}
+
+.price-comparison-table th {
+    text-align: left;
+    padding: 0 1rem 8px 1rem;
+    color: #64748b;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.price-row-card {
+    background: rgba(255, 255, 255, 0.02);
+    transition: all 0.3s ease;
+}
+
+.price-row-card td {
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.price-row-card td:first-child {
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px 0 0 12px;
+}
+
+.price-row-card td:last-child {
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 0 12px 12px 0;
+}
+
+.price-row-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Bottom Action Bar */
+.module-actions-bar {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 1.25rem 2rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.btn-secondary {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    padding: 10px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-primary {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    padding: 10px 32px;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary:hover {
+    background: #1d4ed8;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Tooltip/Helper */
+.helper-box {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+}
+
+.helper-icon {
+    color: #60a5fa;
+    font-size: 1.25rem;
+    margin-top: 2px;
+}
+
+.helper-text {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    line-height: 1.5;
+}
+
+.helper-text strong {
+    color: #e2e8f0;
+}
+
+@media (max-width: 1024px) {
+    .pricing-tabs-container {
+        flex-direction: column;
+    }
+
+    .pricing-tabs-nav {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn {
+        white-space: nowrap;
+    }
+}

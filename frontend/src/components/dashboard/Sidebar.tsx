@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 import { MdDashboard, MdAnalytics, MdChevronLeft, MdChevronRight } from 'react-icons/md';
 import { useState } from 'react';
-import { FaUserShield, FaGamepad } from 'react-icons/fa';
+import { FaUserShield, FaCoins } from 'react-icons/fa';
+import logo from '../../assets/logo.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
@@ -15,6 +16,7 @@ const navItems = [
   { path: '/employee', icon: MdDashboard, label: 'Dashboard' },
   { path: '/analytic', icon: MdAnalytics, label: 'Analysis' },
   { path: '/owner', icon: FaUserShield, label: 'Owner' },
+  { path: '/owner/pricing', icon: FaCoins, label: 'Pricing Config' },
 ];
 
 const Sidebar = ({ isCollapsed = false, toggleCollapsed }: SidebarProps) => {
@@ -24,9 +26,8 @@ const Sidebar = ({ isCollapsed = false, toggleCollapsed }: SidebarProps) => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Filter items: Only show 'Owner' if user is owner
   const displayedNavItems = navItems.filter(item => {
-    if (item.label === 'Owner') {
+    if (item.label === 'Owner' || item.label === 'Pricing Config') {
       return user?.role === 'owner';
     }
     return true;
@@ -52,10 +53,24 @@ const Sidebar = ({ isCollapsed = false, toggleCollapsed }: SidebarProps) => {
       >
         <motion.div
           className="logo-icon-wrapper"
-          whileHover={{ rotate: 15, scale: 1.1 }}
-          transition={{ type: "spring", stiffness: 300 }}
+          whileHover={{ scale: 1.1 }}
+          transition={{ stiffness: 300 }}
         >
-          <FaGamepad size={28} color="var(--accent-yellow)" />
+          <motion.img
+            src={logo}
+            alt="Logo"
+            className="logo"
+            initial={{
+              width: isCollapsed ? 50 : 60,
+              height: isCollapsed ? 50 : 60
+            }}
+            animate={{
+              width: isCollapsed ? 50 : 60,
+              height: isCollapsed ? 50 : 60
+            }}
+            transition={{ duration: 0.4, ease: [0.25, 0, 0.25, 1] }}
+            style={{ borderRadius: '10%', objectFit: 'contain' }}
+          />
         </motion.div>
 
         <AnimatePresence>

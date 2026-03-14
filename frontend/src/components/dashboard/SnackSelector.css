@@ -45,9 +45,12 @@
 
 .snack-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 0.75rem;
-    max-height: 220px;
+    grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+    /* slightly wider columns adjusted down */
+    gap: 0.85rem;
+    /* larger gap */
+    max-height: 250px;
+    /* give more height so cards fit */
     overflow-y: auto;
     padding-right: 4px;
 }
@@ -55,15 +58,21 @@
 .snack-card {
     background: #18181b;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 0.75rem;
+    /* slightly stronger border */
+    border-radius: 14px;
+    /* rounder */
+    padding: 0.85rem;
+    /* slightly less padding to keep it in box */
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    transition: all 0.2s;
+    /* tight gap */
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     user-select: none;
+    min-height: 155px;
+    box-sizing: border-box;
 }
 
 .snack-card:hover {
@@ -78,7 +87,9 @@
 }
 
 .snack-emoji {
-    font-size: 1.5rem;
+    font-size: 2.2rem;
+    /* much larger emoji */
+    margin-top: 4px;
 }
 
 .snack-details {
@@ -87,30 +98,43 @@
 
 .snack-name {
     display: block;
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: #e4e4e7;
-    margin-bottom: 2px;
+    font-size: 0.95rem;
+    /* larger name */
+    font-weight: 600;
+    /* bolder name */
+    color: #fff;
+    /* brighter white text */
+    margin-bottom: 4px;
 }
 
 .snack-price {
-    font-size: 0.75rem;
-    color: #a1a1aa;
+    font-size: 0.85rem;
+    /* slightly larger price */
+    color: #10b981;
+    /* give it a success green color */
+    font-weight: 600;
 }
 
 .quantity-control {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    /* push buttons flush */
+    width: 100%;
     margin-top: auto;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.3);
     border-radius: 20px;
-    padding: 2px;
+    padding: px 6px;
+    box-sizing: border-box;
+    position: relative;
+    bottom: 10px;
 }
 
 .qty-btn {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    /* larger button */
+    height: 28px;
+    /* larger button */
     border-radius: 50%;
     border: none;
     display: flex;
@@ -118,7 +142,8 @@
     justify-content: center;
     cursor: pointer;
     color: #fff;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    /* larger font */
     transition: all 0.2s;
 }
 
@@ -142,9 +167,10 @@
 }
 
 .qty-val {
-    font-size: 0.8rem;
-    font-weight: 600;
-    min-width: 16px;
+    font-size: 1rem;
+    /* larger and clearer quantity text */
+    font-weight: 700;
+    min-width: 20px;
     text-align: center;
     color: #fff;
 }

@@ -3,18 +3,19 @@ import QuickActions from '../components/dashboard/QuickActions';
 import ActiveBattles from '../components/dashboard/ActiveBattles';
 import ActiveSessions from '../components/dashboard/ActiveSessions';
 import UpcomingBookings from '../components/dashboard/UpcomingBookings';
+import './EmployeeDashboard.css';
 
 const EmployeeDashboard = () => {
     return (
-        <DashboardLayout>
-            <div className="dashboard-content">
+        <DashboardLayout className="employee-dashboard-layout">
+            <div className="dashboard-content-redesign">
                 <QuickActions />
                 <ActiveSessions />
-                <ActiveBattles />
                 <UpcomingBookings />
+                <ActiveBattles />
+                
 
-                {/* Footer/Copyright if needed */}
-                <footer style={{ marginTop: '3rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                <footer className="dashboard-footer">
                     &copy; 2024 Thunder Gaming Cafe Management System
                 </footer>
             </div>

@@ -2,6 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 .session-card-container {
+
     background: #121214;
     border: 1px solid rgba(255, 255, 255, 0.08);
     /* Subtle border */
@@ -28,6 +29,22 @@
     align-items: center;
     cursor: pointer;
     user-select: none;
+}
+
+.modal-containers {
+    margin-top: 60px;
+    background: var(--modal-bg);
+    width: 100%;
+    max-width: 100%;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+    border: 1px solid var(--glass-border);
+    font-family: 'Inter', sans-serif;
+    color: var(--text-primary);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
 }
 
 .header-title {
@@ -128,21 +145,24 @@
 
 .device-card-item {
     background: #18181b;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    /* slightly higher contrast */
+    border-radius: 14px;
+    /* slightly rounder */
+    padding: 1rem;
+    /* increased padding */
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    /* Adjusted */
-    gap: 0.5rem;
+    gap: 0.75rem;
+    /* increased gap */
     cursor: default;
-    /* No longer triggering click everywhere */
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
-    min-height: 120px;
+    min-height: 140px;
+    /* increased height */
 }
 
 .device-card-item:hover {
@@ -167,8 +187,10 @@
 }
 
 .device-icon-wrapper {
-    font-size: 1.5rem;
-    color: #71717a;
+    font-size: 1.8rem;
+    /* slightly larger icon */
+    color: #a1a1aa;
+    /* brighter unselected icon */
     transition: color 0.2s;
     margin-top: 4px;
 }
@@ -182,15 +204,21 @@
 }
 
 .device-name {
-    font-size: 0.8rem;
-    color: #e4e4e7;
-    font-weight: 500;
+    font-size: 0.95rem;
+    /* increased font size */
+    color: #fff;
+    /* brighter white text */
+    font-weight: 600;
+    /* bolder */
     display: block;
 }
 
 .device-stock {
-    font-size: 0.7rem;
-    color: #71717a;
+    font-size: 0.75rem;
+    /* increased */
+    color: #a1a1aa;
+    /* brighter */
+    font-weight: 500;
 }
 
 /* Dropdown Control */
@@ -245,20 +273,29 @@
 .device-chips-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
+    gap: 0.5rem;
+    /* slightly more gap */
     justify-content: center;
     width: 100%;
     margin-top: auto;
 }
 
 .device-chip {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: transparent;
-    color: #a1a1aa;
-    font-size: 0.7rem;
+    width: 28px;
+    /* increased chip size */
+    height: 28px;
+    /* increased chip size */
+    border-radius: 8px;
+    /* slightly rounder */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    /* brighter border */
+    background: rgba(255, 255, 255, 0.03);
+    /* slight background */
+    color: #d4d4d8;
+    /* brighter text */
+    font-size: 0.8rem;
+    /* larger font */
+    font-weight: 500;
     display: flex;
     align-items: center;
     justify-content: center;

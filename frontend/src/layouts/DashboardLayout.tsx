@@ -6,13 +6,14 @@ import './DashboardLayout.css';
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  className?: string;
 }
 
-const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+const DashboardLayout = ({ children, className = '' }: DashboardLayoutProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div className="layout-container">
+    <div className={`layout-container ${className}`}>
       <Sidebar
         isCollapsed={isCollapsed}
         toggleCollapsed={() => setIsCollapsed(!isCollapsed)}

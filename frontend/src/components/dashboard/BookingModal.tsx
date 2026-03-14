@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaPlaystation,
@@ -11,14 +11,17 @@ import {
   FaChevronRight,
   FaChevronLeft,
   FaCheck,
+  FaCheckCircle,
   FaPhone
 } from 'react-icons/fa';
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import axios from 'axios';
 import './BookingModal.css';
+import { useToast } from '../../context/ToastContext';
 
 import DeviceDropdown from './DeviceDropdown'; // Imported shared component
 import { calculateSessionPrice } from '../../utils/pricing';
+import { usePricing } from '../../context/PricingContext';
 
 interface Props {
   onClose: () => void;
@@ -44,6 +47,7 @@ const DEVICES: DeviceInfo[] = [
 ];
 
 const BookingModal = ({ onClose, onSuccess }: Props) => {
+  const { config } = usePricing();
   const [currentStep, setCurrentStep] = useState(1);
   const [form, setForm] = useState({
     customerName: '',
@@ -60,6 +64,61 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       metabat: []
     } as Record<string, number[]>
   });
+
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const isSelecting = useRef(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    if (!form.customerName || form.customerName.length < 2) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    if (isSelecting.current) {
+      isSelecting.current = false;
+      return;
+    }
+
+    let cancel = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        const res = await axios.get(
+          "https://thunder-management.onrender.com/api/customers/search",
+          { params: { name: form.customerName.trim() } }
+        );
+        if (!cancel) {
+          setSearchResults(res.data);
+          setShowDropdown(res.data.length > 0);
+        }
+      } catch {
+        if (!cancel) setSearchResults([]);
+      } finally {
+        if (!cancel) setIsSearching(false);
+      }
+    }, 400);
+
+    return () => {
+      cancel = true;
+      clearTimeout(timer);
+    };
+  }, [form.customerName]);
+
+  const selectCustomer = (customer: any) => {
+    isSelecting.current = true;
+    setForm(prev => ({
+      ...prev,
+      customerName: customer.name,
+      contactNumber: customer.phone
+    }));
+    setShowDropdown(false);
+  };
 
   // State for time-specific availability
   const [timeBasedAvailability, setTimeBasedAvailability] = useState<{
@@ -173,6 +232,8 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
     }
   };
 
+  const { showToast } = useToast();
+
   const createBooking = async () => {
     if (!canProceed()) return;
 
@@ -189,11 +250,15 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
         devices: form.devices
       });
 
-      alert('✅ Booking created successfully!');
-      onSuccess();
+      setShowSuccess(true);
+      setTimeout(() => {
+        showToast('Booking created successfully!', 'success');
+        onSuccess();
+      }, 2000);
     } catch (error: any) {
       console.error(error);
-      alert(error.response?.data?.message || 'Failed to create booking.');
+      const message = error.response?.data?.message || 'Failed to create booking.';
+      showToast(message, 'error');
     }
   };
 
@@ -211,7 +276,8 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
       duration,
       form.peopleCount,
       form.devices, // Expects Record<string, number[]>
-      start // Use booking start time for pricing logic (Normal vs Fun)
+      start, // Use booking start time for pricing logic (Normal vs Fun)
+      config
     );
   };
 
@@ -240,7 +306,7 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
   };
 
   return (
-    <div className="booking-modal-overlay" onClick={onClose}>
+    <div className="booking-modal-overlay">
       <motion.div
         className="booking-modal-container"
         onClick={(e) => e.stopPropagation()}
@@ -248,7 +314,85 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ type: 'spring', duration: 0.5 }}
+        style={{ position: 'relative' }}
       >
+        {/* Success Overlay */}
+        <AnimatePresence>
+          {showSuccess && (
+            <motion.div
+              className="success-overlay-absolute"
+              initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+              animate={{ opacity: 1, backdropFilter: "blur(10px)" }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 50,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(2, 6, 23, 0.85)',
+                borderRadius: '24px',
+                flexDirection: 'column',
+                gap: '20px'
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", damping: 12 }}
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #3b82f6, #eab308)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 30px rgba(59, 130, 246, 0.4)'
+                }}
+              >
+                <FaCheckCircle style={{ fontSize: '40px', color: '#fff' }} />
+              </motion.div>
+
+              <div style={{ textAlign: 'center' }}>
+                <motion.h2
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  style={{
+                    fontSize: '2rem',
+                    color: '#fff',
+                    marginBottom: '8px',
+                    fontWeight: 800,
+                    fontFamily: "'Outfit', sans-serif"
+                  }}
+                >
+                  Booking Confirmed!
+                </motion.h2>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  style={{ color: '#94a3b8', fontSize: '1.1rem' }}
+                >
+                  Get ready, <span style={{ color: '#eab308', fontWeight: 600 }}>{form.customerName}</span>
+                </motion.p>
+              </div>
+
+              <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: 'linear-gradient(90deg, #3b82f6, #eab308)',
+                boxShadow: '0 0 20px rgba(59, 130, 246, 0.5)'
+              }} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Header */}
         <div className="booking-modal-header">
           <button className="modal-close-btn" onClick={onClose}>
@@ -300,7 +444,7 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
                   Let's start with the customer's details
                 </p>
 
-                <div className="form-field">
+                <div className="form-field" style={{ position: "relative" }}>
                   <label className="field-label">
                     <FaUser style={{ display: 'inline', marginRight: '0.5rem' }} />
                     Customer Name
@@ -311,8 +455,45 @@ const BookingModal = ({ onClose, onSuccess }: Props) => {
                     placeholder="Enter customer name..."
                     value={form.customerName}
                     onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                    onFocus={() => searchResults.length && setShowDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                     autoFocus
                   />
+                  {showDropdown && (
+                    <div className="player-dropdown" style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '8px',
+                      marginTop: '4px',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 50,
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
+                    }}>
+                      {isSearching && <div className="dropdown-item" style={{ padding: '8px 12px', color: '#94a3b8' }}>Searching...</div>}
+                      {searchResults.map((c, i) => (
+                        <div
+                          key={i}
+                          className="dropdown-item"
+                          onMouseDown={() => selectCustomer(c)}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            borderBottom: '1px solid #334155',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#334155'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                          <div style={{ color: '#f8fafc', fontWeight: 500 }}>{c.name}</div>
+                          <div style={{ fontSize: '12px', color: '#94a3b8' }}>{c.phone}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-field" style={{ marginTop: '1.5rem' }}>

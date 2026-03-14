@@ -14,6 +14,7 @@ import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import axios from 'axios';
 import './SessionEntry.css';
 import { calculateSessionPrice, isFunNightTime, isNormalHourTime } from '../../utils/pricing';
+import { usePricing } from '../../context/PricingContext';
 
 
 /* ---------------- SNACK STATE ---------------- */
@@ -47,6 +48,7 @@ import SnackSelector from './SnackSelector';
 /* ---------------- MAIN ---------------- */
 
 const SessionEntry: React.FC = () => {
+  const { config } = usePricing();
   const [isOpen, setIsOpen] = useState<boolean>(true);
 
   const [form, setForm] = useState<FormState>({
@@ -121,12 +123,13 @@ const SessionEntry: React.FC = () => {
     durationInHours,
     form.peopleCount,
     (form.devices as unknown) as Record<string, number[]>,
-    new Date() // Current time for Fun Night check
+    new Date(), // Current time for Fun Night check
+    config
   );
 
   const totalPrice = calcBasePrice + snackCost;
-  const isFunNight = isFunNightTime();
-  const isNormalHour = isNormalHourTime();
+  const isFunNight = isFunNightTime(new Date(), config);
+  const isNormalHour = isNormalHourTime(new Date(), config);
   /* ----------------------------------- */
 
   const startSession = async () => {

@@ -1,6 +1,6 @@
 const { db } = require('../config/firebase');
 const deviceLimits = require("../config/deviceLimit");
-const { calculateSessionPrice } = require('../utils/pricing');
+const { calculateSessionPrice, isHappyHourTime, isFunNightTime, isNormalHourTime } = require('../utils/pricing');
 const snackService = require('../services/snackService'); // Import SnackService
 
 // Helper to transform device counts object to array of objects for frontend
@@ -27,6 +27,31 @@ const transformDevicesToArray = (deviceData) => {
         if (a.type !== b.type) return a.type.localeCompare(b.type);
         return (a.id || 0) - (b.id || 0);
     });
+};
+
+// Helper to get Pricing Config
+const getPricingConfig = async () => {
+    const { getDefaultPricingConfig } = require('./pricingController');
+    const defaults = getDefaultPricingConfig();
+    try {
+        const doc = await db.collection('settings').doc('pricing').get();
+        if (doc.exists) {
+            const data = doc.data();
+            // Shallow merge of top sections (monWedPrices, etc.)
+            const merged = { ...defaults };
+            Object.keys(data).forEach(key => {
+                if (data[key] && typeof data[key] === 'object' && !Array.isArray(data[key])) {
+                    merged[key] = { ...merged[key], ...data[key] };
+                } else {
+                    merged[key] = data[key];
+                }
+            });
+            return merged;
+        }
+    } catch (err) {
+        console.error("Error fetching pricing for controller logic:", err);
+    }
+    return defaults;
 };
 
 const getDeviceAvailability = async (req, res) => {
@@ -69,7 +94,7 @@ const createSession = async (req, res) => {
     try {
         const {
             customerName, contactNumber, duration,
-            peopleCount, snacks, devices, price, snackDetails,  thunderCoinsUsed = 0 
+            peopleCount, snacks, devices, price, snackDetails, thunderCoinsUsed = 0, gameName
         } = req.body;
 
         // Deduct snacks if provided
@@ -107,11 +132,13 @@ const createSession = async (req, res) => {
         const peopleVal = parseInt(peopleCount) || 1;
         const devicesVal = devices || {};
 
+        const pricingConfig = await getPricingConfig();
         const basePrice = calculateSessionPrice(
             durationVal,
             peopleVal,
             devicesVal,
-            new Date()
+            new Date(),
+            pricingConfig
         );
 
         // Use the price sent from frontend (which includes snacks) or fallback to calculated base
@@ -144,12 +171,17 @@ const createSession = async (req, res) => {
         // 3. Create session
         const newSession = {
             customerName,
+            customerNameLower: customerName.toLowerCase(),
             contactNumber,
             duration: durationVal,
             peopleCount: peopleVal,
-            snacks: snacks || '',
+            gameName,
+            snacks: snackDetails || snacks || [],
             devices: devicesVal, // Store as is (arrays)
             price: finalPrice,
+            paidAmount: 0,
+            remainingPeople: peopleVal,  // Initially all people are remaining
+            remainingAmount: finalPrice,  // Initially full amount is remaining
             status: 'active',
             startTime: new Date().toISOString(),
             createdAt: new Date().toISOString()
@@ -158,28 +190,28 @@ const createSession = async (req, res) => {
 
         const docRef = await db.collection('sessions').add(newSession);
         // ================= THUNDER COIN DEDUCTION =================
-if (thunderCoinsUsed > 0 && contactNumber) {
-    try {
-        const playerRef = db.collection('battelwinner').doc(contactNumber);
-        const playerSnap = await playerRef.get();
+        if (thunderCoinsUsed > 0 && contactNumber) {
+            try {
+                const playerRef = db.collection('battelwinner').doc(contactNumber);
+                const playerSnap = await playerRef.get();
 
-        if (playerSnap.exists) {
-            const currentCoins = playerSnap.data().thunderCoins || 0;
+                if (playerSnap.exists) {
+                    const currentCoins = playerSnap.data().thunderCoins || 0;
 
-            // prevent cheating (frontend manipulation safety)
-            const safeDeduction = Math.min(currentCoins, thunderCoinsUsed);
+                    // prevent cheating (frontend manipulation safety)
+                    const safeDeduction = Math.min(currentCoins, thunderCoinsUsed);
 
-            await playerRef.update({
-                thunderCoins: currentCoins - safeDeduction,
-                updatedAt: new Date().toISOString()
-            });
+                    await playerRef.update({
+                        thunderCoins: currentCoins - safeDeduction,
+                        updatedAt: new Date().toISOString()
+                    });
 
-            console.log(`⚡ Deducted ${safeDeduction} coins from ${contactNumber}`);
+                    console.log(`⚡ Deducted ${safeDeduction} coins from ${contactNumber}`);
+                }
+            } catch (coinErr) {
+                console.error("Thunder coin deduction failed:", coinErr);
+            }
         }
-    } catch (coinErr) {
-        console.error("Thunder coin deduction failed:", coinErr);
-    }
-}
 
 
         global.io.emit('session:started', {
@@ -229,8 +261,11 @@ const getActiveSessions = async (req, res) => {
                 startTime: data.startTime,   // ISO string
                 duration: data.duration,     // hours
                 peopleCount: data.peopleCount,
+                snacks: Array.isArray(data.snacks) ? data.snacks : [],
                 price: data.price,
+                gameName: data.gameName,
                 paidAmount: data.paidAmount || 0,
+                remainingPeople: data.remainingPeople ?? data.peopleCount,
                 remainingAmount: data.remainingAmount ?? data.price,
                 devices: transformDevicesToArray(data.devices), // Now returns objects
                 status: data.status
@@ -335,6 +370,7 @@ const createBooking = async (req, res) => {
 
         const newBooking = {
             customerName,
+            customerNameLower: customerName.toLowerCase(),
             contactNumber: contactNumber || '',
             bookingTime,
             bookingEndTime: bookingEndTime || null,
@@ -387,6 +423,55 @@ const getUpcomingBookings = async (req, res) => {
     } catch (error) {
         console.error('❌ getUpcomingBookings error:', error);
         return res.status(500).json({ message: 'Error fetching bookings' });
+    }
+};
+
+const exportSessions = async (req, res) => {
+    try {
+        if (!db) return res.status(500).json({ message: 'Database not initialized' });
+
+        // Fetch last 2000 sessions (active & completed)
+        const snapshot = await db.collection('sessions')
+            .orderBy('createdAt', 'desc')
+            .limit(2000)
+            .get();
+
+        const pricingConfigExport = await getPricingConfig();
+
+        const data = snapshot.docs.map(doc => {
+            const s = doc.data();
+            const startStr = s.startTime;
+            const startTime = startStr ? (s.startTime.toDate ? s.startTime.toDate() : new Date(startStr)) : null;
+
+            // Determine Time Category
+            let timeCategory = 'Unknown';
+            // Note: exportSessions is sync for each map item, so we should fetch config ONCE outside the map
+            // I will move the config fetch outside.
+            if (startTime && pricingConfigExport) {
+                if (isFunNightTime(startTime, pricingConfigExport)) timeCategory = 'Fun Night';
+                else if (isNormalHourTime(startTime, pricingConfigExport)) timeCategory = 'Normal Hour';
+                else if (isHappyHourTime(startTime, pricingConfigExport)) timeCategory = 'Happy Hour';
+                else timeCategory = 'Happy Hour';
+            }
+
+            // Session Renewed logic
+            const isRenewed = (s.members && s.members.length > 0) || (s.updatedAt && s.updatedAt !== s.createdAt);
+
+            return {
+                Name: s.customerName || 'N/A',
+                Number: s.contactNumber || 'N/A',
+                "Session Renewed": isRenewed ? "Yes" : "No",
+                "Joined During": timeCategory,
+                "Actual Time": startTime ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+                "Session Started With Upcoming Booking": s.convertedFromBooking ? "Yes" : "No"
+            };
+        });
+
+        res.status(200).json(data);
+
+    } catch (error) {
+        console.error('❌ Export sessions error:', error);
+        res.status(500).json({ message: 'Failed to export sessions' });
     }
 };
 
@@ -459,12 +544,11 @@ const getDeviceAvailabilityForTime = async (req, res) => {
 const updateSession = async (req, res) => {
     try {
         const { id } = req.params;
-        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks } = req.body;
+        const { extraTime, extraPrice, newMember, paidNow, payingPeopleNow, snacks, paymentMode, cashCount, onlineCount, addedPeopleCorrection, returnedSnacks } = req.body;
+
+
 
         // Deduct snacks for update
-        if (snacks && Array.isArray(snacks) && snacks.length > 0) {
-            await snackService.deductStock(snacks);
-        }
 
 
         const ref = db.collection('sessions').doc(id);
@@ -476,17 +560,72 @@ const updateSession = async (req, res) => {
 
         const data = snap.data();
 
-        // ---- Option A ledger logic ----
+        // Merge old snacks + new snacks
+        const existingSnacks = data.snacks || [];
+
+        let updatedSnacks = [...existingSnacks];
+
+        if (snacks && Array.isArray(snacks) && snacks.length > 0) {
+            snacks.forEach(newSnack => {
+                const existing = updatedSnacks.find(s => s.name === newSnack.name);
+
+                if (existing) {
+                    existing.quantity += newSnack.quantity;
+                } else {
+                    updatedSnacks.push({
+                        name: newSnack.name,
+                        quantity: newSnack.quantity
+                    });
+                }
+            });
+        }
+        if (returnedSnacks && Array.isArray(returnedSnacks) && returnedSnacks.length > 0) {
+
+            returnedSnacks.forEach(returned => {
+
+                const existing = updatedSnacks.find(s => s.name === returned.name);
+
+                if (existing) {
+                    existing.quantity -= returned.quantity;
+
+                    if (existing.quantity <= 0) {
+                        updatedSnacks = updatedSnacks.filter(s => s.name !== returned.name);
+                    }
+                }
+
+            });
+
+        }
+
+        // ---- Fixed split logic: Track actual amounts, not recalculate ----
         const totalPrice = data.price + (extraPrice || 0);
 
+        // Track actual amounts paid
         const alreadyPaidAmount = data.paidAmount || 0;
-        const alreadyPaidPeople = data.paidPeople || 0;
+        const currentPayment = paidNow || 0;
+        const newTotalPaid = alreadyPaidAmount + currentPayment;
 
-        const paid = alreadyPaidAmount + (paidNow || 0);
-        const newPaidPeople = alreadyPaidPeople + (payingPeopleNow || 0);
+        // Calculate split amounts
+        let newCashAmount = 0;
+        let newOnlineAmount = 0;
 
-        const remainingAmount = totalPrice - paid;
+        if (paymentMode === 'equal' && currentPayment > 0) {
+            const totalPayers = (cashCount || 0) + (onlineCount || 0);
+            if (totalPayers > 0) {
+                const amountPerPerson = currentPayment / totalPayers;
+                newCashAmount = (cashCount || 0) * amountPerPerson;
+                newOnlineAmount = (onlineCount || 0) * amountPerPerson;
+            }
+        } else {
+            // Fallback for custom or direct payments if cashCount/onlineCount missing
+            // If we don't know the split, we could default to cash or just not update split fields
+            // For now, let's assume if it's not equal split with counts, we rely on existing logic (or add fields later)
+        }
 
+        // Remaining amount is simply: Total - What's been paid
+        const remainingAmount = Math.max(0, totalPrice - newTotalPaid);
+
+        let finalRemainingPeople = 0;
 
         // ---- Safe device merge ----
         let updatedDevices = { ...data.devices };
@@ -497,29 +636,47 @@ const updateSession = async (req, res) => {
                 const existingVal = updatedDevices[k];
                 const newVal = newMember.devices[k];
 
-                // Convert existing to array if number (legacy)
                 const existingArr = Array.isArray(existingVal) ? existingVal : (typeof existingVal === 'number' && existingVal > 0 ? [existingVal] : []);
-                // Convert new to array if number (legacy)
                 const newArr = Array.isArray(newVal) ? newVal : (typeof newVal === 'number' && newVal > 0 ? [newVal] : []);
 
-                // Merge and unique
                 const merged = [...new Set([...existingArr, ...newArr])].sort((a, b) => a - b);
-
                 updatedDevices[k] = merged;
             });
-
             addedPeople = newMember.peopleCount || 0;
+        }
+
+        const newPeopleCount = data.peopleCount + addedPeople + (addedPeopleCorrection || 0);
+        const currentRemainingPeople = data.remainingPeople ?? data.peopleCount;
+
+        let peopleLeaving = 0;
+
+        if (paymentMode === "equal") {
+            peopleLeaving = payingPeopleNow || 0;
+        } else if (paymentMode === "custom") {
+            peopleLeaving = currentPayment > 0 ? 1 : 0;
+        }
+
+        finalRemainingPeople = Math.max(0, currentRemainingPeople - peopleLeaving + addedPeople + (addedPeopleCorrection || 0));
+
+        // If session fully paid → zero remaining people
+        if (remainingAmount === 0) {
+            finalRemainingPeople = 0;
         }
 
         // ---- Final update ----
         await ref.update({
             duration: data.duration + (extraTime || 0),
-            peopleCount: data.peopleCount + addedPeople,
+            peopleCount: newPeopleCount,
             price: totalPrice,
-            paidAmount: paid,
-            paidPeople: newPaidPeople,
+            paidAmount: newTotalPaid,
+            remainingPeople: finalRemainingPeople,
             remainingAmount,
             devices: updatedDevices,
+            snacks: updatedSnacks,
+            // Update cash and online split totals
+            cash: (data.cash || 0) + newCashAmount,
+            online: (data.online || 0) + newOnlineAmount,
+
             members: newMember
                 ? [...(data.members || []), newMember]
                 : data.members || [],
@@ -561,8 +718,29 @@ const completeSession = async (req, res) => {
 const deleteSession = async (req, res) => {
     try {
         const { id } = req.params;
-        await db.collection('sessions').doc(id).delete();
-        res.status(200).json({ message: 'Session deleted successfully' });
+        const { deletedBy, deletedByName } = req.body; // Expect user info
+
+        const docRef = db.collection('sessions').doc(id);
+        const doc = await docRef.get();
+
+        if (doc.exists) {
+            const data = doc.data();
+            // Create Audit Log
+            await db.collection('deletion_logs').add({
+                source: 'Active Session',
+                targetId: id,
+                customerName: data.customerName || 'Unknown',
+                details: data,
+                deletedBy: deletedBy || 'Unknown', // 'owner' or 'employee'
+                deletedByName: deletedByName || 'Unknown',
+                deletedAt: new Date().toISOString()
+            });
+
+            await docRef.delete();
+            res.status(200).json({ message: 'Session deleted and logged successfully' });
+        } else {
+            res.status(404).json({ message: 'Session not found' });
+        }
     } catch (error) {
         console.error('Error deleting session:', error);
         res.status(500).json({ message: 'Failed to delete session' });
@@ -572,8 +750,29 @@ const deleteSession = async (req, res) => {
 const deleteBooking = async (req, res) => {
     try {
         const { id } = req.params;
-        await db.collection('bookings').doc(id).delete();
-        res.status(200).json({ message: 'Booking deleted successfully' });
+        const { deletedBy, deletedByName } = req.body;
+
+        const docRef = db.collection('bookings').doc(id);
+        const doc = await docRef.get();
+
+        if (doc.exists) {
+            const data = doc.data();
+            // Create Audit Log
+            await db.collection('deletion_logs').add({
+                source: 'Upcoming Booking',
+                targetId: id,
+                customerName: data.customerName || 'Unknown',
+                details: data,
+                deletedBy: deletedBy || 'Unknown',
+                deletedByName: deletedByName || 'Unknown',
+                deletedAt: new Date().toISOString()
+            });
+
+            await docRef.delete();
+            res.status(200).json({ message: 'Booking deleted and logged successfully' });
+        } else {
+            res.status(404).json({ message: 'Booking not found' });
+        }
     } catch (error) {
         console.error('Error deleting booking:', error);
         res.status(500).json({ message: 'Failed to delete booking' });
@@ -601,6 +800,8 @@ const convertBookingsToSessions = async (req, res) => {
             console.log('📭 No upcoming bookings found');
             return res ? res.status(200).json({ message: 'No bookings to convert', converted: 0 }) : { converted: 0 };
         }
+
+        const pricingConfig = await getPricingConfig();
 
         let convertedCount = 0;
         const conversions = [];
@@ -635,7 +836,8 @@ const convertBookingsToSessions = async (req, res) => {
                     parseFloat(duration.toFixed(2)),
                     finalPeopleCount,
                     booking.devices || {},
-                    now // Use current time for pricing rules
+                    now, // Use current time for pricing rules
+                    pricingConfig
                 );
 
                 // Create new session
@@ -648,6 +850,7 @@ const convertBookingsToSessions = async (req, res) => {
                     devices: booking.devices || {},
                     price: calculatedPrice,
                     paidAmount: 0,
+                    remainingPeople: finalPeopleCount,  // Initially all people are remaining
                     remainingAmount: calculatedPrice,
                     status: 'active',
                     startTime: now.toISOString(),
@@ -719,6 +922,7 @@ module.exports = {
     getActiveSessions,
     createBooking,
     getUpcomingBookings,
+    exportSessions,
     getDeviceAvailability,
     getDeviceAvailabilityForTime,
     updateSession,

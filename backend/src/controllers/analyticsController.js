@@ -28,9 +28,28 @@ const getLast24HoursStats = async (req, res) => {
             }
 
             // -------- Snacks --------
-            if (data.snacks) {
-                snackCount[data.snacks] =
-                    (snackCount[data.snacks] || 0) + 1;
+            if (data.snackDetails && Array.isArray(data.snackDetails)) {
+                data.snackDetails.forEach(snack => {
+                    const snackName = snack.name?.trim();
+                    if (snackName) {
+                        snackCount[snackName] = (snackCount[snackName] || 0) + (Number(snack.quantity) || 1);
+                    }
+                });
+            } else if (data.snacks) {
+                // Legacy support for string format "Chips, Coke"
+                const snackStr = String(data.snacks);
+                snackStr.split(',').forEach(s => {
+                    let snackName = s.trim();
+                    let qty = 1;
+                    const match = snackName.match(/(.*?)\s*x(\d+)$/i);
+                    if (match) {
+                        snackName = match[1].trim();
+                        qty = parseInt(match[2], 10) || 1;
+                    }
+                    if (snackName) {
+                        snackCount[snackName] = (snackCount[snackName] || 0) + qty;
+                    }
+                });
             }
 
             // -------- Peak Hour --------
@@ -45,16 +64,16 @@ const getLast24HoursStats = async (req, res) => {
             Object.entries(snackCount).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
         const peakHourRaw =
-    Object.entries(hourCount).sort((a, b) => b[1] - a[1])[0]?.[0];
+            Object.entries(hourCount).sort((a, b) => b[1] - a[1])[0]?.[0];
 
-let peakHour = 'N/A';
+        let peakHour = 'N/A';
 
-if (peakHourRaw !== undefined) {
-    const hour = Number(peakHourRaw);
-    const suffix = hour >= 12 ? 'PM' : 'AM';
-    const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
-    peakHour = `${formattedHour}:00 ${suffix}`;
-}
+        if (peakHourRaw !== undefined) {
+            const hour = Number(peakHourRaw);
+            const suffix = hour >= 12 ? 'PM' : 'AM';
+            const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
+            peakHour = `${formattedHour}:00 ${suffix}`;
+        }
 
 
         res.status(200).json({
@@ -74,11 +93,9 @@ if (peakHourRaw !== undefined) {
 
 const getDeviceOccupancyLast24Hours = async (req, res) => {
     try {
-        const now = new Date();
-        const last24 = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
+        // Query ACTIVE sessions for current occupancy
         const snapshot = await db.collection('sessions')
-            .where('createdAt', '>=', last24.toISOString())
+            .where('status', '==', 'active')
             .get();
 
         let occupiedDevices = 0;
@@ -87,9 +104,13 @@ const getDeviceOccupancyLast24Hours = async (req, res) => {
             const data = doc.data();
             if (!data.devices) return;
 
-            // Sum actual stored device counts
-            Object.values(data.devices).forEach(count => {
-                occupiedDevices += count;
+            // Sum actual stored device counts (Handle both Arrays and Numbers)
+            Object.values(data.devices).forEach(val => {
+                if (Array.isArray(val)) {
+                    occupiedDevices += val.length;
+                } else if (typeof val === 'number') {
+                    occupiedDevices += val;
+                }
             });
         });
 
@@ -230,13 +251,29 @@ const getSnacksConsumptionLast24Hours = async (req, res) => {
 
         snapshot.forEach(doc => {
             const data = doc.data();
-            if (!data.snacks) return;
 
-            // snacks assumed as string (e.g. "Coke")
-            const snack = String(data.snacks).trim();
-            if (!snack) return;
-
-            snackMap[snack] = (snackMap[snack] || 0) + 1;
+            if (data.snackDetails && Array.isArray(data.snackDetails)) {
+                data.snackDetails.forEach(snack => {
+                    const snackName = snack.name?.trim();
+                    if (!snackName) return;
+                    snackMap[snackName] = (snackMap[snackName] || 0) + (Number(snack.quantity) || 1);
+                });
+            } else if (data.snacks) {
+                // Legacy support for string format
+                const snackStr = String(data.snacks);
+                snackStr.split(',').forEach(s => {
+                    let snackName = s.trim();
+                    let qty = 1;
+                    const match = snackName.match(/(.*?)\s*x(\d+)$/i);
+                    if (match) {
+                        snackName = match[1].trim();
+                        qty = parseInt(match[2], 10) || 1;
+                    }
+                    if (snackName) {
+                        snackMap[snackName] = (snackMap[snackName] || 0) + qty;
+                    }
+                });
+            }
         });
 
         // Convert to Recharts-friendly array

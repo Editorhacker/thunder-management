@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../utils/api';
+import { API_BASE_URL } from '../../utils/api';
 import { FaPlaystation, FaDesktop, FaVrCardboard, FaGamepad } from 'react-icons/fa';
 import { GiSteeringWheel, GiCricketBat } from 'react-icons/gi';
 import UpdateSessionModal from './UpdateSessionModal';
@@ -7,11 +8,11 @@ import './ActiveSessions.css';
 import { io } from 'socket.io-client';
 import { isFunNightTime, isNormalHourTime } from '../../utils/pricing';
 
+
 /* ---------------------------------------
    Device Icon Helper
 --------------------------------------- */
-const DeviceIcon = ({ type }: { type: string }) => {
-  const size = 14;
+const DeviceIcon = ({ type, size = 14 }: { type: string, size?: number }) => {
   switch (type) {
     case 'ps': return <FaPlaystation size={size} />;
     case 'pc': return <FaDesktop size={size} />;
@@ -23,7 +24,7 @@ const DeviceIcon = ({ type }: { type: string }) => {
 };
 
 
-const socket = io('https://thunder-management.onrender.com', {
+const socket = io(API_BASE_URL, {
   transports: ['websocket']
 });
 
@@ -40,6 +41,7 @@ interface ActiveSession {
   price: number;
   paidAmount?: number;
   remainingAmount?: number;
+  snacks: {name: string, quantity: number}[];
 
   devices: { type: 'ps' | 'pc' | 'vr' | 'wheel' | 'metabat'; id: number | null }[];
   status: string;
@@ -55,7 +57,7 @@ const ActiveSessions = () => {
   --------------------------------------- */
   const fetchSessions = async () => {
     try {
-      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/active');
+      const res = await api.get('/api/sessions/active');
       setSessions(res.data);
     } catch (err) {
       console.error('Failed to load active sessions', err);
@@ -80,13 +82,13 @@ const ActiveSessions = () => {
 
     socket.on('session:updated', async () => {
       // Rare event → safe to refresh list once
-      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/active');
+      const res = await api.get('/api/sessions/active');
       setSessions(res.data);
     });
 
     socket.on('booking:converted', async () => {
       // booking → session happened
-      const res = await axios.get('https://thunder-management.onrender.com/api/sessions/active');
+      const res = await api.get('/api/sessions/active');
       setSessions(res.data);
     });
 
@@ -114,14 +116,17 @@ const ActiveSessions = () => {
         const start = new Date(session.startTime).getTime();
         const totalDurationMs = session.duration * 60 * 60 * 1000;
         const end = start + totalDurationMs;
-        const remaining = end - now;
+        const remaining = end - currentTime;
 
-        // If time is up by more than 30 seconds (-30000ms)
-        if (remaining < -30000 && !processingRef.has(session.id)) {
+        // If time is up by more than 30 seconds (-30000ms) AND it is fully paid
+        // Strictly check that remainingAmount is 0 or less
+        const isFullyPaid = (Number(session.remainingAmount) || 0) <= 0;
+
+        if (remaining < -30000 && isFullyPaid && !processingRef.has(session.id)) {
           processingRef.add(session.id);
-          console.log(`Auto-completing session ${session.id} because time is up > 30s`);
+          console.log(`Auto-completing session ${session.id} because time is up > 30s and fully paid`);
 
-          axios.post(`https://thunder-management.onrender.com/api/sessions/complete/${session.id}`)
+          api.post(`/api/sessions/complete/${session.id}`)
             .then(() => {
               // Success - socket will remove it, or we can manually remove
               // If selected session matches, close modal
@@ -138,7 +143,7 @@ const ActiveSessions = () => {
 
     }, 1000);
     return () => clearInterval(timer);
-  }, [sessions, selectedSession]); // Dep depends on sessions list
+  }, [sessions, selectedSession, currentTime]); // Added currentTime to deps
 
   const isFunNight = isFunNightTime();
   const isNormalHour = isNormalHourTime();
@@ -152,8 +157,8 @@ const ActiveSessions = () => {
     const end = start + totalDurationMs;
 
     const now = currentTime;
-    const elapsed = now - start;
     const remaining = end - now;
+    const isUnpaidFinished = remaining <= 0 && (Number(session.remainingAmount) || 0) > 0;
 
     // UI Logic for completed
     let timeText = "Completed";
@@ -163,8 +168,9 @@ const ActiveSessions = () => {
       const secs = Math.floor((remaining % (1000 * 60)) / 1000);
       timeText = `${hrs > 0 ? `${hrs}h ` : ''}${mins}m ${secs}s`;
     } else {
-      // Show negative countdown or "Vanishing..."
-      if (remaining > -30000) {
+      if (isUnpaidFinished) {
+        timeText = "Payment Pending";
+      } else if (remaining > -30000) {
         const vanishingIn = Math.ceil((30000 + remaining) / 1000);
         timeText = `Vanishing in ${vanishingIn}s`;
       } else {
@@ -172,10 +178,11 @@ const ActiveSessions = () => {
       }
     }
 
+    const elapsed = now - start;
     const progress = Math.min(100, Math.max(0, (elapsed / totalDurationMs) * 100));
     const isUrgent = remaining < 10 * 60 * 1000 && remaining > 0;
 
-    return { progress, isUrgent, timeText, remaining };
+    return { progress, isUrgent, isUnpaidFinished, timeText, remaining };
   };
 
   const getInitials = (name: string) => {
@@ -192,11 +199,11 @@ const ActiveSessions = () => {
       {/* Header */}
       <div className="sessions-header">
         <h3 className="section-title-lg">Active Sessions
-          {isFunNight && <span style={{ color: '#ec4899', fontSize: '0.6em', border: '1px solid #ec4899', padding: '2px 8px', borderRadius: '12px', marginLeft: 8, verticalAlign: 'middle' }}>🌙 Fun Night</span>}
-          {isNormalHour && <span style={{ color: '#3b82f6', fontSize: '0.6em', border: '1px solid #3b82f6', padding: '2px 8px', borderRadius: '12px', marginLeft: 8, verticalAlign: 'middle' }}>☀️ Normal Hour</span>}
+          {isFunNight && <span className="badge-fun-night">🌙 Fun Night</span>}
+          {isNormalHour && <span className="badge-normal-hour">☀️ Normal Hour</span>}
         </h3>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.9rem', color: '#a1a1aa' }}>
+          <span className="player-count">
             {sessions.length} Players Online
           </span>
         </div>
@@ -214,16 +221,16 @@ const ActiveSessions = () => {
         )}
 
         {!loading && sessions.map((session) => {
-          const { progress, isUrgent, timeText } = getSessionDetails(session);
+          const { progress, isUrgent, isUnpaidFinished } = getSessionDetails(session);
+          const startTime = new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
           return (
             <div
               key={session.id}
-              className={`session-card-premium ${isUrgent ? 'urgent' : ''}`}
+              className={`session-card-premium ${isUrgent ? 'urgent' : ''} ${isUnpaidFinished ? 'unpaid-finished' : ''}`}
               onClick={() => setSelectedSession(session)}
             >
-              {/* Top Stripe */}
-              <div className="card-status-stripe" />
+              {/* Top Stripe - REMOVED for Neon Look */}
 
               <div className="card-content">
                 {/* Header: User */}
@@ -234,20 +241,17 @@ const ActiveSessions = () => {
                   <div className="user-info">
                     <h4>{session.customer}</h4>
                     <p>₹{session.remainingAmount} • {session.peopleCount} Player{session.peopleCount > 1 ? 's' : ''}</p>
+                    <div className="session-meta">
+                      <span className="start-time">Started at {startTime}</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Big Timer */}
-                <div className="timer-display-big">
-                  <span className="time-remaining">{timeText}</span>
-                  <span className="time-label">Time Remaining</span>
-                </div>
-
-                {/* Devices */}
+                {/* Devices (Made Bigger) */}
                 <div className="devices-mini-grid">
                   {session.devices.map((dev, i) => (
                     <div key={i} className={`device-tag ${dev.type}`}>
-                      <DeviceIcon type={dev.type} />
+                      <DeviceIcon type={dev.type} size={14} />
                       <span style={{ textTransform: 'uppercase' }}>
                         {dev.type} {dev.id ? `#${dev.id}` : ''}
                       </span>

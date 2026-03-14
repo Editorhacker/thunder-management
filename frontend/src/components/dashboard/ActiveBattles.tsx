@@ -133,10 +133,10 @@ const ActiveBattles = () => {
         <section className="active-battles-container">
             <div className="battles-header">
                 <h3 className="battles-title">
-                    <GiCrossedSwords style={{ color: '#ef4444' }} />
+                    <GiCrossedSwords className="icon-battle-red" />
                     Live Battles
                 </h3>
-                <span style={{ fontSize: '0.8rem', color: '#71717a' }}>
+                <span className="battles-count">
                     {battles.length} active matches
                 </span>
             </div>

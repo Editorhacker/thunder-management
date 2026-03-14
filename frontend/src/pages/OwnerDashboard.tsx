@@ -11,11 +11,13 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import {
     GlassCard, GradientTitle, TabGroup, ActionButton, QuickStat
 } from '../components/owner/ui/ModernComponents';
-import SubscriptionCard from '../components/owner/SubscriptionCard';
+import SubscriptionOverview from "../components/owner/SubscriptionOverview.tsx";
 import RecentTransactions from '../components/owner/RecentTransactions';
 
 import OwnerPieCharts from '../components/owner/OwnerPieCharts';
+import DeletionLogs from '../components/owner/DeletionLogs';
 import SnackOverview from '../components/owner/SnackOverview'; // Import SnackOverview
+import { useSessionExport } from '../components/owner/ExportSessionsReport';
 
 import './OwnerDashboard.css';
 
@@ -45,50 +47,44 @@ const OwnerDashboard: React.FC = () => {
 
     // Fetch dashboard data
     useEffect(() => {
-        const fetchDashboard = async () => {
+        const fetchDashboardData = async () => {
+            setLoading(true);
+            const range = timeFilter.toLowerCase().replace(' ', '');
+
             try {
-                setLoading(true);
+                // Fetch stats and revenue flow in parallel to avoid race conditions
+                const [statsRes, flowRes] = await Promise.all([
+                    fetch(`/api/owner/ownerstat?range=${range}`),
+                    fetch(`/api/owner/revenueflow?range=${range}`)
+                ]);
 
-                const range = timeFilter.toLowerCase().replace(' ', '');
-                const res = await fetch(`https://thunder-management.onrender.com/api/owner/ownerstat?range=${range}`);
-                const data = await res.json();
+                const statsData = await statsRes.json();
+                const flowData = await flowRes.json();
 
-                setKpiStats(data.kpiStats || []);
-                setRevenueTrends(data.revenueTrends || []);
+                setKpiStats(statsData.kpiStats || []);
+
+                // Use flowData specifically for the chart
+                setRevenueTrends(flowData.data || []);
+                setChartMode(flowData.groupBy || 'hour');
+
             } catch (err) {
-                console.error('❌ Dashboard fetch failed:', err);
+                console.error('❌ Dashboard data fetch failed:', err);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchDashboard();
-    }, [timeFilter]);
-    useEffect(() => {
-        const fetchRevenueFlow = async () => {
-            try {
-                const range = timeFilter.toLowerCase().replace(' ', '');
-                const res = await fetch(
-                    `https://thunder-management.onrender.com/api/owner/revenueflow?range=${range}`
-                );
-                const data = await res.json();
-
-                setRevenueTrends(data.data || []);
-                setChartMode(data.groupBy || 'hour');
-            } catch (err) {
-                console.error('❌ Revenue flow fetch failed', err);
-            }
-        };
-
-        fetchRevenueFlow();
+        fetchDashboardData();
     }, [timeFilter]);
 
 
 
     const filterOptions = ['Today', 'Yesterday', 'Last Week', 'This Month'];
 
+    const { exportData, loading: exportLoading } = useSessionExport();
+
     const handleDownload = () => {
-        alert('Downloading Report...');
+        exportData();
     };
 
     // Icon helper
@@ -128,7 +124,7 @@ const OwnerDashboard: React.FC = () => {
                         />
                         <ActionButton
                             icon={FaDownload}
-                            label="Export"
+                            label={exportLoading ? "Exporting..." : "Export"}
                             onClick={handleDownload}
                             variant="primary"
                         />
@@ -158,7 +154,7 @@ const OwnerDashboard: React.FC = () => {
                             </div>
 
                             <div className="chart-wrapper">
-                                <ResponsiveContainer width="90%" height="100%">
+                                <ResponsiveContainer width="100%" height={350}>
                                     <AreaChart data={revenueTrends}>
                                         <defs>
                                             <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -229,16 +225,16 @@ const OwnerDashboard: React.FC = () => {
                 <section className="secondary-grid">
                     <div className="pie-charts-area">
                         <RecentTransactions timeFilter={timeFilter} />
-
                     </div>
                     <div className="transactions-area">
-                        <SubscriptionCard />
+                        <SubscriptionOverview />
                     </div>
                 </section>
 
-                {/* 5. Snacks */}
-                <section className="bottom-section" style={{ marginTop: '1.5rem' }}>
+                {/* 5. Snacks & Deletion Audits */}
+                <section className="operational-grid" style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
                     <SnackOverview />
+                    <DeletionLogs />
                 </section>
 
             </div>
